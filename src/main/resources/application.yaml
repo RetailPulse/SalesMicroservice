@@ -1,0 +1,29 @@
+server.port: 8085
+
+auth:
+  enabled: false
+  origin: "http://localhost:4200"
+  jwt.key.set.uri: http://app-iam:8081/oauth2/jwks
+
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3322/RP-SalesDB 
+    username: root
+    password: password
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    database-platform: org.hibernate.dialect.MySQL8Dialect
+    show-sql: true
+
+logging:
+  level:
+    root: INFO
+    org:
+      springframework:
+        security: TRACE
+    com.retailpulse: DEBUG
+  file:
+    name: logs/retailpulse.log

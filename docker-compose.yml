@@ -1,0 +1,50 @@
+services:
+  mysql:
+    image: mysql:latest
+    container_name: mysql-rp-sales
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: RP-SalesDB
+    ports:
+      - "3322:3306"
+    volumes:
+      - ./deploy/sales.init.sql:/docker-entrypoint-initdb.d/init.sql
+      - mysql_sales_vol:/var/lib/mysql
+    healthcheck:
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost" ]
+      interval: 30s
+      retries: 5
+      start_period: 10s
+      timeout: 10s
+    networks:
+      - retailpulse-network
+
+  # app:
+  #   image: rp-sales-app
+  #   container_name: app-rp-sales
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile
+  #   environment:
+  #     SPRING_DATASOURCE_URL: jdbc:mysql://mysql-rp:3322/RP-SalesDB
+  #     SPRING_DATASOURCE_USERNAME: root
+  #     SPRING_DATASOURCE_PASSWORD: password
+  #     SERVER_PORT: 8092
+  #     AUTH_SERVER_URL: http://app-iam:8081
+  #   ports:
+  #     - "8092:8080"
+  #   depends_on:
+  #     mysql-rp:
+  #       condition: service_healthy
+  #     app-iam:
+  #       condition: service_started
+  #   networks:
+  #     - retailpulse-network
+
+networks:
+  retailpulse-network:
+    driver: bridge
+
+volumes:
+  mysql_sales_vol:

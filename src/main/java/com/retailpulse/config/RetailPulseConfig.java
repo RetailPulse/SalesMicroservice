@@ -32,6 +32,14 @@ public class RetailPulseConfig {
 
   @Bean
   public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    // Disable CSRF for stateless API
+    http.csrf(c -> c.disable());
+
+    // Enable CORS
+    http.cors(c -> {
+      c.configurationSource(corsConfigurationSource());
+    });
+
     if (authEnabled) {
       System.out.println("Auth enabled");
       http.oauth2ResourceServer(
@@ -47,14 +55,11 @@ public class RetailPulseConfig {
       );
     } else {
       System.out.println("No auth enabled");
-      http.authorizeHttpRequests(        
-        c -> c.anyRequest().permitAll()
-      );
+      http.authorizeHttpRequests(auth -> auth.anyRequest().permitAll());
+      // http.authorizeHttpRequests(        
+      //   c -> c.anyRequest().permitAll()
+      // );
     }
-
-    http.cors(c -> {
-      c.configurationSource(corsConfigurationSource());
-    });
 
     return http.build();
   }
