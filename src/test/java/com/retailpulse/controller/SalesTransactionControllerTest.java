@@ -1,10 +1,10 @@
 package com.retailpulse.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.retailpulse.controller.request.SalesDetailsDto;
-import com.retailpulse.controller.request.SalesTransactionRequestDto;
-import com.retailpulse.controller.response.SalesTransactionResponseDto;
-import com.retailpulse.controller.response.TaxResultDto;
+import com.retailpulse.dto.request.SalesDetailsDto;
+import com.retailpulse.dto.request.SalesTransactionRequestDto;
+import com.retailpulse.dto.response.SalesTransactionResponseDto;
+import com.retailpulse.dto.response.TaxResultDto;
 import com.retailpulse.entity.TaxType;
 import com.retailpulse.service.SalesTransactionService;
 import com.retailpulse.util.DateUtil;

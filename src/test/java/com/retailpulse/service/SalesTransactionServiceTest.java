@@ -1,9 +1,9 @@
 package com.retailpulse.service;
 
-import com.retailpulse.controller.request.SalesDetailsDto;
-import com.retailpulse.controller.request.SalesTransactionRequestDto;
-import com.retailpulse.controller.response.SalesTransactionResponseDto;
-import com.retailpulse.controller.response.TaxResultDto;
+import com.retailpulse.dto.request.SalesDetailsDto;
+import com.retailpulse.dto.request.SalesTransactionRequestDto;
+import com.retailpulse.dto.response.SalesTransactionResponseDto;
+import com.retailpulse.dto.response.TaxResultDto;
 import com.retailpulse.entity.SalesDetails;
 import com.retailpulse.entity.SalesTax;
 import com.retailpulse.entity.SalesTransaction;
@@ -36,9 +36,8 @@ public class SalesTransactionServiceTest {
     @Mock
     private SalesTaxRepository salesTaxRepository;
 
-    // // TODO: Mock inventory service instead
-    // @Mock
-    // private StockUpdateService stockUpdateService;
+    @Mock
+    private StockUpdateService stockUpdateService;
 
     @InjectMocks
     private SalesTransactionService salesTransactionService;
@@ -76,8 +75,7 @@ public class SalesTransactionServiceTest {
 
         SalesTransactionResponseDto responseDto = salesTransactionService.createSalesTransaction(salesTransactionRequestDto);
 
-        // //TODO: modify to verify inventory service instead
-        // verify(stockUpdateService, times(1)).deductStock(any(SalesTransaction.class));
+        verify(stockUpdateService, times(1)).deductStock(any(SalesTransaction.class));
         
         verify(salesTransactionRepository, times(1)).save(any(SalesTransaction.class));
         assertEquals(TaxType.GST.name(), responseDto.taxType());
@@ -96,9 +94,8 @@ public class SalesTransactionServiceTest {
 
         SalesTransactionResponseDto salesTransactionResponseDto = salesTransactionService.updateSalesTransaction(1L, newDetails);
 
-        // // //TODO: modify to verify inventory service instead
-        // verify(stockUpdateService, times(1)).addStock(any(SalesTransaction.class));
-        // verify(stockUpdateService, times(1)).deductStock(any(SalesTransaction.class));
+        verify(stockUpdateService, times(1)).addStock(any(SalesTransaction.class));
+        verify(stockUpdateService, times(1)).deductStock(any(SalesTransaction.class));
 
         // Verify that the sales details were saved
         verify(salesTransactionRepository, times(1)).saveAndFlush(any(SalesTransaction.class));

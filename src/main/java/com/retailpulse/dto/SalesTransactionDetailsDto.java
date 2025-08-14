@@ -1,4 +1,4 @@
-package com.retailpulse.DTO;
+package com.retailpulse.dto;
 
 import com.retailpulse.entity.SalesDetails;
 import com.retailpulse.entity.SalesTransaction;

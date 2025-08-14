@@ -1,11 +1,11 @@
 package com.retailpulse.service;
 
-import com.retailpulse.controller.request.SalesDetailsDto;
-import com.retailpulse.controller.request.SalesTransactionRequestDto;
-import com.retailpulse.controller.request.SuspendedTransactionDto;
-import com.retailpulse.controller.response.SalesTransactionResponseDto;
-import com.retailpulse.controller.response.TaxResultDto;
-import com.retailpulse.controller.response.TransientSalesTransactionDto;
+import com.retailpulse.dto.request.SalesDetailsDto;
+import com.retailpulse.dto.request.SalesTransactionRequestDto;
+import com.retailpulse.dto.request.SuspendedTransactionDto;
+import com.retailpulse.dto.response.SalesTransactionResponseDto;
+import com.retailpulse.dto.response.TaxResultDto;
+import com.retailpulse.dto.response.TransientSalesTransactionDto;
 import com.retailpulse.entity.*;
 import com.retailpulse.exception.ErrorCodes;
 import com.retailpulse.repository.SalesTaxRepository;
@@ -26,17 +26,17 @@ public class SalesTransactionService {
     private final SalesTransactionRepository salesTransactionRepository;
     private final SalesTaxRepository salesTaxRepository;
     private final SalesTransactionHistory salesTransactionHistory;
-    // private final StockUpdateService stockUpdateService;
+    private final StockUpdateService stockUpdateService;
 
     public SalesTransactionService(SalesTransactionRepository salesTransactionRepository,
                                    SalesTaxRepository salesTaxRepository,
-                                   SalesTransactionHistory salesTransactionHistory //,
-                                  //  StockUpdateService stockUpdateService
+                                   SalesTransactionHistory salesTransactionHistory,
+                                   StockUpdateService stockUpdateService
                                    ) {
         this.salesTransactionRepository = salesTransactionRepository;
         this.salesTaxRepository = salesTaxRepository;
         this.salesTransactionHistory = salesTransactionHistory;
-        // this.stockUpdateService = stockUpdateService;
+        this.stockUpdateService = stockUpdateService;
     }
 
 
@@ -88,15 +88,13 @@ public class SalesTransactionService {
         // Add each SalesDetails to the transaction
         salesDetailEntities.forEach(transaction::addSalesDetails);
 
-        // TODO: Change to call inventory service to deduct stock
-        // // For each SalesDetails entry, deduct inventory
-        // stockUpdateService.deductStock(transaction);
+        // For each SalesDetails entry, deduct inventory
+        stockUpdateService.deductStock(transaction);
 
         transaction = salesTransactionRepository.save(transaction);
 
         // map salesTransaction to salesTransactionResponseDto
         return mapToResponseDto(transaction);
-
     }
 
     /**
@@ -112,9 +110,8 @@ public class SalesTransactionService {
         SalesTransaction existingTransaction = salesTransactionRepository.findById(transactionId)
                 .orElseThrow(() -> new BusinessException(ErrorCodes.NOT_FOUND, "Sales transaction not found for id: " + transactionId));
 
-        // TODO: Change to call inventory service to add inventory transaction
-        // // Reverse inventory deduction for each old sales detail
-        // stockUpdateService.addStock(existingTransaction);
+        // Reverse inventory deduction for each old sales detail
+        stockUpdateService.addStock(existingTransaction);
 
         // Map new sales details DTOs to SalesDetails entities
         List<SalesDetails> newSalesDetailEntities = newSalesDetailsDtos.stream()
@@ -122,14 +119,12 @@ public class SalesTransactionService {
                 .toList();
 
         existingTransaction.updateSalesDetails(newSalesDetailEntities);
-
-        //TODO: Change to call inventory service to deduct stock
-        // stockUpdateService.deductStock(existingTransaction);
+        
+        stockUpdateService.deductStock(existingTransaction);
 
         salesTransactionRepository.saveAndFlush(existingTransaction);
 
         return mapToResponseDto(existingTransaction);
-
     }
 
     /**
@@ -167,7 +162,6 @@ public class SalesTransactionService {
                     return mapToTransientDto(transaction);
                 })
                 .toList();
-
     }
 
     public List<TransientSalesTransactionDto> restoreTransaction(Long businessEntityId, Long transactionId) {
@@ -225,5 +219,4 @@ public class SalesTransactionService {
                 DateUtil.convertInstantToString(salesTransaction.getTransactionDate(), DateUtil.DATE_TIME_FORMAT)
         );
     }
-
 }

@@ -1,4 +1,4 @@
-package com.retailpulse.controller.request;
+package com.retailpulse.dto.request;
 
 import java.util.List;
 

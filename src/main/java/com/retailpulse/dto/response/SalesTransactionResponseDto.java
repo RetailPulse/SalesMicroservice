@@ -1,6 +1,6 @@
-package com.retailpulse.controller.response;
+package com.retailpulse.dto.response;
 
-import com.retailpulse.controller.request.SalesDetailsDto;
+import com.retailpulse.dto.request.SalesDetailsDto;
 
 import java.util.List;
 

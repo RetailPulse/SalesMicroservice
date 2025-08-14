@@ -17,6 +17,9 @@ spring:
       ddl-auto: update
     database-platform: org.hibernate.dialect.MySQL8Dialect
     show-sql: true
+    
+inventory-service:
+    url: http://localhost:8082
 
 logging:
   level:

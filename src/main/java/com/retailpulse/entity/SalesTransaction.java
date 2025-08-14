@@ -1,6 +1,6 @@
 package com.retailpulse.entity;
 
-import com.retailpulse.controller.request.SalesDetailsDto;
+import com.retailpulse.dto.request.SalesDetailsDto;
 import com.retailpulse.util.DateUtil;
 import jakarta.persistence.*;
 import lombok.Getter;

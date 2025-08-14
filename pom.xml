@@ -13,19 +13,20 @@
 	<version>0.0.1-SNAPSHOT</version>
 	<name>retailpulse-salesMicroservice</name>
 	<description>Microservice to handle sales transaction.</description>
-	<url/>
-	<licenses>
-		<license/>
-	</licenses>
-	<developers>
-		<developer/>
-	</developers>
-	<scm>
-		<connection/>
-		<developerConnection/>
-		<tag/>
-		<url/>
-	</scm>
+
+  <!-- Add this dependency management section -->
+	<dependencyManagement>
+		<dependencies>
+			<dependency>
+				<groupId>org.springframework.cloud</groupId>
+				<artifactId>spring-cloud-dependencies</artifactId>
+				<version>2024.0.0</version> <!-- Spring Cloud 2024.0.0 ( compatible with Spring Boot 3.5.x -->
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
+
   <properties>
     <java.version>23</java.version>
     <sonar.organization>retailpulse</sonar.organization>
@@ -36,6 +37,7 @@
     <maven.compiler.target>23</maven.compiler.target>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
   </properties>
+
 	<dependencies>
       <!-- Lombok dependency -->
       <dependency>
@@ -80,6 +82,12 @@
         <artifactId>mockito-core</artifactId>
         <version>3.12.4</version>
         <scope>test</scope>
+      </dependency>
+
+      <!-- OpenFeign dependency -->
+      <dependency>
+        <groupId>org.springframework.cloud</groupId>
+        <artifactId>spring-cloud-starter-openfeign</artifactId>
       </dependency>
 
       <!-- Spring Boot Test dependency -->
@@ -127,7 +135,6 @@
         <version>24.0.0</version>
         <scope>compile</scope>
       </dependency>
-
     </dependencies>
 
 	<build>

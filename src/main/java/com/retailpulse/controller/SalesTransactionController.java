@@ -1,11 +1,11 @@
 package com.retailpulse.controller;
 
-import com.retailpulse.controller.request.SalesDetailsDto;
-import com.retailpulse.controller.request.SalesTransactionRequestDto;
-import com.retailpulse.controller.request.SuspendedTransactionDto;
-import com.retailpulse.controller.response.SalesTransactionResponseDto;
-import com.retailpulse.controller.response.TaxResultDto;
-import com.retailpulse.controller.response.TransientSalesTransactionDto;
+import com.retailpulse.dto.request.SalesDetailsDto;
+import com.retailpulse.dto.request.SalesTransactionRequestDto;
+import com.retailpulse.dto.request.SuspendedTransactionDto;
+import com.retailpulse.dto.response.SalesTransactionResponseDto;
+import com.retailpulse.dto.response.TaxResultDto;
+import com.retailpulse.dto.response.TransientSalesTransactionDto;
 import com.retailpulse.service.SalesTransactionService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
