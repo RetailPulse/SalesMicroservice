@@ -19,7 +19,7 @@ import java.util.List;
  * @create 5/2/2025 3:38 pm
  */
 @Configuration
-public class RetailPulseConfig {
+public class SalesMicroserviceConfig {
 
   @Value("${auth.jwt.key.set.uri}")
   private String keySetUri;

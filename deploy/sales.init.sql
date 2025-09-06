@@ -1,6 +1,6 @@
 -- MySQL dump 10.13  Distrib 9.3.0, for Linux (x86_64)
 --
--- Host: localhost    Database: RetailPulseDB
+-- Host: localhost    Database: RPSalesDB
 -- ------------------------------------------------------
 -- Server version	9.3.0
 

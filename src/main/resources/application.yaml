@@ -19,7 +19,7 @@ spring:
     show-sql: true
     
 inventory-service:
-    url: http://localhost:8082
+    url: http://localhost:8085
 
 logging:
   level:
@@ -29,4 +29,4 @@ logging:
         security: TRACE
     com.retailpulse: DEBUG
   file:
-    name: logs/retailpulse.log
+    name: logs/rp-sales.log
