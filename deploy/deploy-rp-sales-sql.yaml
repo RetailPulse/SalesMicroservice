@@ -1,0 +1,149 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: secret-mysql-sales
+  namespace: ns-retailpulse
+type: Opaque
+stringData:
+  MYSQL_ROOT_PASSWORD: password
+  MYSQL_DATABASE: RPSalesDB
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cm-mysql-sales-init
+  namespace: ns-retailpulse
+data:
+  init.sql: "-- MySQL dump 10.13  Distrib 9.3.0, for Linux (x86_64)\r\n--\r\n-- Host:
+    localhost    Database: RPSalesDB\r\n-- ------------------------------------------------------\r\n--
+    Server version\t9.3.0\r\n\r\n/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT
+    */;\r\n/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;\r\n/*!40101
+    SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;\r\n/*!50503 SET NAMES
+    utf8mb4 */;\r\n/*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;\r\n/*!40103 SET TIME_ZONE='+00:00'
+    */;\r\n/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;\r\n/*!40014
+    SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;\r\n/*!40101
+    SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;\r\n/*!40111
+    SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;\r\n\r\n--\r\n-- Table structure
+    for table `sales_details`\r\n--\r\n\r\nDROP TABLE IF EXISTS `sales_details`;\r\n/*!40101
+    SET @saved_cs_client     = @@character_set_client */;\r\n/*!50503 SET character_set_client
+    = utf8mb4 */;\r\nCREATE TABLE `sales_details` (\r\n  `id` bigint NOT NULL AUTO_INCREMENT,\r\n
+    \ `product_id` bigint NOT NULL,\r\n  `quantity` int NOT NULL,\r\n  `sales_price_per_unit`
+    decimal(38,2) NOT NULL,\r\n  `sale_id` bigint NOT NULL,\r\n  PRIMARY KEY (`id`),\r\n
+    \ KEY `FKmofh1590bbm744ll9r3aywtk` (`sale_id`),\r\n  CONSTRAINT `FKmofh1590bbm744ll9r3aywtk`
+    FOREIGN KEY (`sale_id`) REFERENCES `sales_transaction` (`id`)\r\n) ENGINE=InnoDB
+    DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;\r\n/*!40101 SET character_set_client
+    = @saved_cs_client */;\r\n\r\n--\r\n-- Dumping data for table `sales_details`\r\n--\r\n\r\nLOCK
+    TABLES `sales_details` WRITE;\r\n/*!40000 ALTER TABLE `sales_details` DISABLE
+    KEYS */;\r\n/*!40000 ALTER TABLE `sales_details` ENABLE KEYS */;\r\nUNLOCK TABLES;\r\n\r\n--\r\n--
+    Table structure for table `sales_tax`\r\n--\r\n\r\nDROP TABLE IF EXISTS `sales_tax`;\r\n/*!40101
+    SET @saved_cs_client     = @@character_set_client */;\r\n/*!50503 SET character_set_client
+    = utf8mb4 */;\r\nCREATE TABLE `sales_tax` (\r\n  `id` bigint NOT NULL AUTO_INCREMENT,\r\n
+    \ `tax_rate` decimal(38,2) DEFAULT NULL,\r\n  `tax_type` enum('GST') DEFAULT NULL,\r\n
+    \ PRIMARY KEY (`id`)\r\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;\r\n/*!40101
+    SET character_set_client = @saved_cs_client */;\r\n\r\n--\r\n-- Dumping data for
+    table `sales_tax`\r\n--\r\n\r\nLOCK TABLES `sales_tax` WRITE;\r\n/*!40000 ALTER
+    TABLE `sales_tax` DISABLE KEYS */;\r\nINSERT INTO `sales_tax` (`id`, `tax_rate`,
+    `tax_type`) VALUES (1, 9.00, 'GST');\r\n/*!40000 ALTER TABLE `sales_tax` ENABLE
+    KEYS */;\r\nUNLOCK TABLES;\r\n\r\n--\r\n-- Table structure for table `sales_transaction`\r\n--\r\n\r\nDROP
+    TABLE IF EXISTS `sales_transaction`;\r\n/*!40101 SET @saved_cs_client     = @@character_set_client
+    */;\r\n/*!50503 SET character_set_client = utf8mb4 */;\r\nCREATE TABLE `sales_transaction`
+    (\r\n  `id` bigint NOT NULL AUTO_INCREMENT,\r\n  `business_entity_id` bigint NOT
+    NULL,\r\n  `sales_tax_amount` decimal(38,2) DEFAULT NULL,\r\n  `subtotal` decimal(38,2)
+    DEFAULT NULL,\r\n  `total` decimal(38,2) DEFAULT NULL,\r\n  `transaction_date`
+    datetime(6) NOT NULL,\r\n  `sales_tax_id` bigint DEFAULT NULL,\r\n  PRIMARY KEY
+    (`id`),\r\n  KEY `FK7wq54e1ubjodfnaph9fu12grq` (`sales_tax_id`),\r\n  CONSTRAINT
+    `FK7wq54e1ubjodfnaph9fu12grq` FOREIGN KEY (`sales_tax_id`) REFERENCES `sales_tax`
+    (`id`)\r\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;\r\n/*!40101
+    SET character_set_client = @saved_cs_client */;\r\n\r\n--\r\n-- Dumping data for
+    table `sales_transaction`\r\n--\r\n\r\nLOCK TABLES `sales_transaction` WRITE;\r\n/*!40000
+    ALTER TABLE `sales_transaction` DISABLE KEYS */;\r\n/*!40000 ALTER TABLE `sales_transaction`
+    ENABLE KEYS */;\r\nUNLOCK TABLES;\r\n\r\n"
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mysql-sales-pvc
+  namespace: ns-retailpulse
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysql-rp-sales
+  namespace: ns-retailpulse
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mysql-rp-sales
+  template:
+    metadata:
+      labels:
+        app: mysql-rp-sales
+    spec:
+      containers:
+        - name: mysql
+          image: mysql:latest
+          ports:
+            - containerPort: 3306
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: secret-mysql-sales
+                  key: MYSQL_ROOT_PASSWORD
+            - name: MYSQL_DATABASE
+              valueFrom:
+                secretKeyRef:
+                  name: secret-mysql-sales
+                  key: MYSQL_DATABASE
+          volumeMounts:
+            - name: mysql-data
+              mountPath: /var/lib/mysql
+            - name: init-sql-file
+              mountPath: /docker-entrypoint-initdb.d
+          livenessProbe:
+            exec:
+              command: ["mysqladmin", "ping", "-h", "localhost"]
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 5
+          readinessProbe:
+            exec:
+              command: ["mysqladmin", "ping", "-h", "localhost"]
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 5
+      volumes:
+        - name: mysql-data
+          persistentVolumeClaim:
+            claimName: mysql-sales-pvc
+        - name: init-sql-file
+          configMap:
+            name: cm-mysql-sales-init
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-rp-sales 
+  namespace: ns-retailpulse
+spec:
+  selector:
+    app: mysql-rp-sales
+  ports:
+    - protocol: TCP
+      port: 3306
+      targetPort: 3306
+      nodePort: 30309
+  type: NodePort
