@@ -32,13 +32,11 @@ public class SalesMicroserviceConfig {
 
   @Bean
   public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-    // Disable CSRF for stateless API
-    http.csrf(c -> c.disable());
-
+    
     // Enable CORS
-    http.cors(c -> {
-      c.configurationSource(corsConfigurationSource());
-    });
+    http
+    .cors(c -> {c.configurationSource(corsConfigurationSource());})
+    .csrf(c -> c.disable());
 
     if (authEnabled) {
       System.out.println("Auth enabled");
