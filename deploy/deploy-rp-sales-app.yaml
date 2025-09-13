@@ -6,11 +6,11 @@ metadata:
 data:
   application.yaml: |
     server:
-      port: 8092
+      port: 8085
 
     auth:
       enabled: false
-      origin: "http://localhost:4200"
+      origin: "http://app-web:4200"
       jwt:
         key:
           set:
@@ -30,7 +30,7 @@ data:
         show-sql: true
         
     inventory-service:
-      url: http://svc-rp-inventory:30085
+      url: http://svc-rp-inventory:8085
 
     logging:
       level:
@@ -82,11 +82,11 @@ metadata:
     app: deploy-rp-sales
   name: svc-rp-sales
 spec:
-  ports:
-  - port: 8092
-    protocol: TCP
-    targetPort: 8092
-    nodePort: 30092
   selector:
     app: deploy-rp-sales
+  ports:
+  - port: 8085
+    protocol: TCP
+    targetPort: 8085
+    nodePort: 30085
   type: NodePort
