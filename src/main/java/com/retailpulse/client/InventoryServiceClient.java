@@ -2,6 +2,8 @@
 package com.retailpulse.client;
 
 import com.retailpulse.dto.request.InventoryUpdateRequestDto;
+import com.retailpulse.dto.response.InventoryUpdateResponseDto;
+
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -9,9 +11,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 @FeignClient(name = "inventory-service", url = "${inventory-service.url}")
 public interface InventoryServiceClient {
     
-    @PostMapping("/api/inventory/deduct")
-    void deductStock(@RequestBody InventoryUpdateRequestDto request);
-    
-    @PostMapping("/api/inventory/add")
-    void addStock(@RequestBody InventoryUpdateRequestDto request);
+    @PostMapping("/api/inventory/salesUpdate")
+    InventoryUpdateResponseDto  updateStocks(@RequestBody InventoryUpdateRequestDto request);
 }

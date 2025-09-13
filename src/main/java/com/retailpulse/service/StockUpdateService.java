@@ -2,7 +2,9 @@ package com.retailpulse.service;
 
 import com.retailpulse.client.InventoryServiceClient;
 import com.retailpulse.dto.request.InventoryUpdateRequestDto;
+import com.retailpulse.dto.response.InventoryUpdateResponseDto;
 import com.retailpulse.entity.SalesTransaction;
+import com.retailpulse.exception.StockUpdateException;
 import org.springframework.stereotype.Service;
 
 import java.util.stream.Collectors;
@@ -16,18 +18,21 @@ public class StockUpdateService {
         this.inventoryServiceClient = inventoryServiceClient;
     }
     
-    public void deductStock(SalesTransaction transaction) {
+    public InventoryUpdateResponseDto updateStocks(SalesTransaction transaction) {
         InventoryUpdateRequestDto request = createStockUpdateRequest(transaction);
-        inventoryServiceClient.deductStock(request);
+        InventoryUpdateResponseDto response = inventoryServiceClient.updateStocks(request);
+
+        if (!response.success()) {
+            throw new StockUpdateException(
+                    "Failed to update stock for sale transaction " + transaction.getId() + ": " + response.message()
+            );
+        }
+
+        return response;
     }
-    
-    public void addStock(SalesTransaction transaction) {
-        InventoryUpdateRequestDto request = createStockUpdateRequest(transaction);
-        inventoryServiceClient.addStock(request);
-    }
-    
+        
     private InventoryUpdateRequestDto createStockUpdateRequest(SalesTransaction transaction) {
-        var items = transaction.getSalesDetailEntities().stream()
+        var items = transaction.getSalesDetailEntities().values().stream()
             .map(detail -> new InventoryUpdateRequestDto.InventoryItem(
                 detail.getProductId(),
                 detail.getQuantity()

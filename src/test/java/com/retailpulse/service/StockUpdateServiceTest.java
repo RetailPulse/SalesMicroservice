@@ -31,11 +31,11 @@ class StockUpdateServiceTest {
         SalesTransaction transaction = createTestTransaction();
 
         // When
-        stockUpdateService.deductStock(transaction);
+        stockUpdateService.deductStocks(transaction);
 
         // Then
-        verify(inventoryServiceClient, times(1)).deductStock(any(InventoryUpdateRequestDto.class));
-        verify(inventoryServiceClient, never()).addStock(any());
+        verify(inventoryServiceClient, times(1)).deductStocks(any(InventoryUpdateRequestDto.class));
+        verify(inventoryServiceClient, never()).addStocks(any());
     }
 
     @Test
@@ -44,11 +44,11 @@ class StockUpdateServiceTest {
         SalesTransaction transaction = createTestTransaction();
 
         // When
-        stockUpdateService.addStock(transaction);
+        stockUpdateService.addStocks(transaction);
 
         // Then
-        verify(inventoryServiceClient, times(1)).addStock(any(InventoryUpdateRequestDto.class));
-        verify(inventoryServiceClient, never()).deductStock(any());
+        verify(inventoryServiceClient, times(1)).addStocks(any(InventoryUpdateRequestDto.class));
+        verify(inventoryServiceClient, never()).deductStocks(any());
     }
 
     @Test
@@ -60,10 +60,10 @@ class StockUpdateServiceTest {
         Integer expectedQuantity = 5;
 
         // When
-        stockUpdateService.deductStock(transaction);
+        stockUpdateService.deductStocks(transaction);
 
         // Then
-        verify(inventoryServiceClient).deductStock(argThat(request -> 
+        verify(inventoryServiceClient).deductStocks(argThat(request -> 
             request.businessEntityId() == expectedBusinessEntityId &&
             request.items().size() == 1 &&
             request.items().get(0).productId() == expectedProductId &&
@@ -80,10 +80,10 @@ class StockUpdateServiceTest {
         Integer expectedQuantity = 5;
 
         // When
-        stockUpdateService.addStock(transaction);
+        stockUpdateService.addStocks(transaction);
 
         // Then
-        verify(inventoryServiceClient).addStock(argThat(request -> 
+        verify(inventoryServiceClient).addStocks(argThat(request -> 
             request.businessEntityId() == expectedBusinessEntityId &&
             request.items().size() == 1 &&
             request.items().get(0).productId() == expectedProductId &&
@@ -97,10 +97,10 @@ class StockUpdateServiceTest {
         SalesTransaction transaction = createTransactionWithMultipleItems();
 
         // When
-        stockUpdateService.deductStock(transaction);
+        stockUpdateService.deductStocks(transaction);
 
         // Then
-        verify(inventoryServiceClient).deductStock(argThat(request -> 
+        verify(inventoryServiceClient).deductStocks(argThat(request -> 
             request.items().size() == 2 &&
             request.items().get(0).productId() == 1L &&
             request.items().get(0).quantity() == 5 &&

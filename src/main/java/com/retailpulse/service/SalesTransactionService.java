@@ -19,6 +19,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 public class SalesTransactionService {
@@ -81,15 +82,23 @@ public class SalesTransactionService {
         SalesTransaction transaction = new SalesTransaction(requestDto.businessEntityId(), salesTax);
 
         // map salesDetailsDto to salesDetails
-        List<SalesDetails> salesDetailEntities = requestDto.salesDetails().stream()
-                .map(salesDetailsDto -> new SalesDetails(salesDetailsDto.productId(), salesDetailsDto.quantity(), new BigDecimal(salesDetailsDto.salesPricePerUnit())))
-                .toList();
+        Map<Long, SalesDetails> salesDetailEntities = requestDto.salesDetails().stream()
+        .map(salesDetailsDto -> new SalesDetails(
+                salesDetailsDto.productId(),
+                salesDetailsDto.quantity(),
+                new BigDecimal(salesDetailsDto.salesPricePerUnit())
+        ))
+        .collect(Collectors.toMap(
+                SalesDetails::getProductId,
+                detail -> detail,
+                (_, replacement) -> replacement // handle duplicate keys if needed
+        ));
 
         // Add each SalesDetails to the transaction
-        salesDetailEntities.forEach(transaction::addSalesDetails);
+        transaction.addSalesDetails(salesDetailEntities);
 
-        // For each SalesDetails entry, deduct inventory
-        stockUpdateService.deductStock(transaction);
+        // For each SalesDetails entry, update inventory
+        stockUpdateService.updateStocks(transaction);
 
         transaction = salesTransactionRepository.save(transaction);
 
@@ -110,8 +119,11 @@ public class SalesTransactionService {
         SalesTransaction existingTransaction = salesTransactionRepository.findById(transactionId)
                 .orElseThrow(() -> new BusinessException(ErrorCodes.NOT_FOUND, "Sales transaction not found for id: " + transactionId));
 
+        // Create a new transaction object to hold the updated details
+        SalesTransaction updateTransaction = new SalesTransaction(existingTransaction.getBusinessEntityId(), existingTransaction.getSalesTax());
+
         // Reverse inventory deduction for each old sales detail
-        stockUpdateService.addStock(existingTransaction);
+        stockUpdateService.addStocks(existingTransaction);
 
         // Map new sales details DTOs to SalesDetails entities
         List<SalesDetails> newSalesDetailEntities = newSalesDetailsDtos.stream()
@@ -120,7 +132,7 @@ public class SalesTransactionService {
 
         existingTransaction.updateSalesDetails(newSalesDetailEntities);
         
-        stockUpdateService.deductStock(existingTransaction);
+        stockUpdateService.deductStocks(existingTransaction);
 
         salesTransactionRepository.saveAndFlush(existingTransaction);
 

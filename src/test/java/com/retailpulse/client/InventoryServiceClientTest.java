@@ -26,11 +26,11 @@ class InventoryServiceClientTest {
         );
 
         // When
-        inventoryServiceClient.deductStock(requestDto);
+        inventoryServiceClient.deductStocks(requestDto);
 
         // Then
-        verify(inventoryServiceClient, times(1)).deductStock(requestDto);
-        verify(inventoryServiceClient, never()).addStock(any());
+        verify(inventoryServiceClient, times(1)).deductStocks(requestDto);
+        verify(inventoryServiceClient, never()).addStocks(any());
     }
 
     @Test
@@ -43,10 +43,10 @@ class InventoryServiceClientTest {
         );
 
         // When
-        inventoryServiceClient.addStock(requestDto);
+        inventoryServiceClient.addStocks(requestDto);
 
         // Then
-        verify(inventoryServiceClient, times(1)).addStock(requestDto);
-        verify(inventoryServiceClient, never()).deductStock(any());
+        verify(inventoryServiceClient, times(1)).addStocks(requestDto);
+        verify(inventoryServiceClient, never()).deductStocks(any());
     }
 }

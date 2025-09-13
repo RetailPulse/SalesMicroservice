@@ -75,7 +75,7 @@ public class SalesTransactionServiceTest {
 
         SalesTransactionResponseDto responseDto = salesTransactionService.createSalesTransaction(salesTransactionRequestDto);
 
-        verify(stockUpdateService, times(1)).deductStock(any(SalesTransaction.class));
+        verify(stockUpdateService, times(1)).deductStocks(any(SalesTransaction.class));
         
         verify(salesTransactionRepository, times(1)).save(any(SalesTransaction.class));
         assertEquals(TaxType.GST.name(), responseDto.taxType());
@@ -94,8 +94,8 @@ public class SalesTransactionServiceTest {
 
         SalesTransactionResponseDto salesTransactionResponseDto = salesTransactionService.updateSalesTransaction(1L, newDetails);
 
-        verify(stockUpdateService, times(1)).addStock(any(SalesTransaction.class));
-        verify(stockUpdateService, times(1)).deductStock(any(SalesTransaction.class));
+        verify(stockUpdateService, times(1)).addStocks(any(SalesTransaction.class));
+        verify(stockUpdateService, times(1)).deductStocks(any(SalesTransaction.class));
 
         // Verify that the sales details were saved
         verify(salesTransactionRepository, times(1)).saveAndFlush(any(SalesTransaction.class));
