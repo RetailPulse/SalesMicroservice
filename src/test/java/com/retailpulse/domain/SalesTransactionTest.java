@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.Map;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
@@ -17,9 +18,12 @@ public class SalesTransactionTest {
     public void createSalesTransaction() {
         SalesTax salesTax = new SalesTax(TaxType.GST, new BigDecimal("0.09"));
         SalesTransaction salesTransaction = new SalesTransaction(1L, salesTax);
-        salesTransaction.addSalesDetails(new SalesDetails(1L, 2, new BigDecimal("50.0")));
-        salesTransaction.addSalesDetails(new SalesDetails(2L, 3, new BigDecimal("100.0")));
-        salesTransaction.addSalesDetails(new SalesDetails(3L, 4, new BigDecimal("200.0")));
+        Map<Long, SalesDetails> salesDetailsMap = Map.of(
+                1L, new SalesDetails(1L, 2, new BigDecimal("50.0")),
+                2L, new SalesDetails(2L, 3, new BigDecimal("100.0")),
+                3L, new SalesDetails(3L, 4, new BigDecimal("200.0"))
+        );
+        salesTransaction.addSalesDetails(salesDetailsMap);
 
         // expected value
         BigDecimal expectedSubtotal = new BigDecimal("50.0").multiply(new BigDecimal("2"))

@@ -3,132 +3,65 @@ package com.retailpulse.service;
 import com.retailpulse.client.InventoryServiceClient;
 import com.retailpulse.dto.request.InventoryUpdateRequestDto;
 import com.retailpulse.entity.SalesDetails;
-import com.retailpulse.entity.SalesTransaction;
+import com.retailpulse.exception.BusinessException;
+import feign.FeignException;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
-import java.util.List;
+import java.util.Map;
 
-import static org.mockito.ArgumentMatchers.any;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
-@ExtendWith(MockitoExtension.class)
 class StockUpdateServiceTest {
 
-    @Mock
-    private InventoryServiceClient inventoryServiceClient;
+  private InventoryServiceClient inventoryServiceClient;
+  private StockUpdateService stockUpdateService;
 
-    @InjectMocks
-    private StockUpdateService stockUpdateService;
+  @BeforeEach
+  void setUp() {
+    inventoryServiceClient = mock(InventoryServiceClient.class);
+    stockUpdateService = new StockUpdateService(inventoryServiceClient);
+  }
 
-    @Test
-    void shouldCallDeductStockWhenDeductingStock() {
-        // Given
-        SalesTransaction transaction = createTestTransaction();
+  @Test
+  void updateStocks_successfulUpdate_callsInventoryClient() {
+    Long businessEntityId = 1L;
+    Map<Long, SalesDetails> salesDetails = Map.of(
+      100L, new SalesDetails(100L, 5, new BigDecimal("10.00")),
+      101L, new SalesDetails(101L, -2, new BigDecimal("12.50"))
+    );
 
-        // When
-        stockUpdateService.deductStocks(transaction);
+    assertDoesNotThrow(() -> stockUpdateService.updateStocks(businessEntityId, salesDetails));
+    verify(inventoryServiceClient, times(1)).updateStocks(any(InventoryUpdateRequestDto.class));
+  }
 
-        // Then
-        verify(inventoryServiceClient, times(1)).deductStocks(any(InventoryUpdateRequestDto.class));
-        verify(inventoryServiceClient, never()).addStocks(any());
-    }
+  @Test
+  void updateStocks_emptySalesDetails_throwsBusinessException() {
+    Long businessEntityId = 1L;
+    Map<Long, SalesDetails> emptyDetails = Map.of();
 
-    @Test
-    void shouldCallAddStockWhenAddingStock() {
-        // Given
-        SalesTransaction transaction = createTestTransaction();
+    BusinessException ex = assertThrows(BusinessException.class, () ->
+      stockUpdateService.updateStocks(businessEntityId, emptyDetails)
+    );
 
-        // When
-        stockUpdateService.addStocks(transaction);
+    assertEquals("EMPTY_TRANSACTION", ex.getErrorCode());
+  }
 
-        // Then
-        verify(inventoryServiceClient, times(1)).addStocks(any(InventoryUpdateRequestDto.class));
-        verify(inventoryServiceClient, never()).deductStocks(any());
-    }
+  @Test
+  void updateStocks_feignException_throwsBusinessException() {
+    Long businessEntityId = 1L;
+    Map<Long, SalesDetails> salesDetails = Map.of(
+      100L, new SalesDetails(100L, 3, new BigDecimal("9.99"))
+    );
 
-    @Test
-    void shouldCreateCorrectInventoryUpdateRequestForDeductStock() {
-        // Given
-        SalesTransaction transaction = createTestTransaction();
-        Long expectedBusinessEntityId = 100L;
-        Long expectedProductId = 1L;
-        Integer expectedQuantity = 5;
+    doThrow(mock(FeignException.class)).when(inventoryServiceClient).updateStocks(any());
 
-        // When
-        stockUpdateService.deductStocks(transaction);
+    BusinessException ex = assertThrows(BusinessException.class, () ->
+      stockUpdateService.updateStocks(businessEntityId, salesDetails)
+    );
 
-        // Then
-        verify(inventoryServiceClient).deductStocks(argThat(request -> 
-            request.businessEntityId() == expectedBusinessEntityId &&
-            request.items().size() == 1 &&
-            request.items().get(0).productId() == expectedProductId &&
-            request.items().get(0).quantity() == expectedQuantity
-        ));
-    }
-
-    @Test
-    void shouldCreateCorrectInventoryUpdateRequestForAddStock() {
-        // Given
-        SalesTransaction transaction = createTestTransaction();
-        Long expectedBusinessEntityId = 100L;
-        Long expectedProductId = 1L;
-        Integer expectedQuantity = 5;
-
-        // When
-        stockUpdateService.addStocks(transaction);
-
-        // Then
-        verify(inventoryServiceClient).addStocks(argThat(request -> 
-            request.businessEntityId() == expectedBusinessEntityId &&
-            request.items().size() == 1 &&
-            request.items().get(0).productId() == expectedProductId &&
-            request.items().get(0).quantity() == expectedQuantity
-        ));
-    }
-
-    @Test
-    void shouldHandleMultipleSalesDetails() {
-        // Given
-        SalesTransaction transaction = createTransactionWithMultipleItems();
-
-        // When
-        stockUpdateService.deductStocks(transaction);
-
-        // Then
-        verify(inventoryServiceClient).deductStocks(argThat(request -> 
-            request.items().size() == 2 &&
-            request.items().get(0).productId() == 1L &&
-            request.items().get(0).quantity() == 5 &&
-            request.items().get(1).productId() == 2L &&
-            request.items().get(1).quantity() == 3
-        ));
-    }
-
-    // Helper methods to create test data
-    private SalesTransaction createTestTransaction() {
-        SalesTransaction transaction = mock(SalesTransaction.class);
-        when(transaction.getBusinessEntityId()).thenReturn(100L);
-        
-        SalesDetails salesDetails = new SalesDetails(1L, 5, new BigDecimal("10.99"));
-        when(transaction.getSalesDetailEntities()).thenReturn(List.of(salesDetails));
-        
-        return transaction;
-    }
-
-    private SalesTransaction createTransactionWithMultipleItems() {
-        SalesTransaction transaction = mock(SalesTransaction.class);
-        when(transaction.getBusinessEntityId()).thenReturn(100L);
-        
-        SalesDetails salesDetails1 = new SalesDetails(1L, 5, new BigDecimal("10.99"));
-        SalesDetails salesDetails2 = new SalesDetails(2L, 3, new BigDecimal("15.50"));
-        
-        when(transaction.getSalesDetailEntities()).thenReturn(List.of(salesDetails1, salesDetails2));
-        
-        return transaction;
-    }
+    assertEquals("INVENTORY_UPDATE_FAILED", ex.getErrorCode());
+  }
 }

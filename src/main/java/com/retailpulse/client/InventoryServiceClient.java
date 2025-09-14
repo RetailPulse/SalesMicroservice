@@ -1,8 +1,6 @@
-// Create this interface in a new package: com.retailpulse.client
 package com.retailpulse.client;
 
 import com.retailpulse.dto.request.InventoryUpdateRequestDto;
-import com.retailpulse.dto.response.InventoryUpdateResponseDto;
 
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -12,5 +10,5 @@ import org.springframework.web.bind.annotation.RequestBody;
 public interface InventoryServiceClient {
     
     @PostMapping("/api/inventory/salesUpdate")
-    InventoryUpdateResponseDto  updateStocks(@RequestBody InventoryUpdateRequestDto request);
+    void updateStocks(@RequestBody InventoryUpdateRequestDto request);
 }

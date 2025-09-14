@@ -19,216 +19,281 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 @Service
 public class SalesTransactionService {
 
-    private final SalesTransactionRepository salesTransactionRepository;
-    private final SalesTaxRepository salesTaxRepository;
-    private final SalesTransactionHistory salesTransactionHistory;
-    private final StockUpdateService stockUpdateService;
+  private static final Logger logger = Logger.getLogger(SalesTransactionService.class.getName());
 
-    public SalesTransactionService(SalesTransactionRepository salesTransactionRepository,
-                                   SalesTaxRepository salesTaxRepository,
-                                   SalesTransactionHistory salesTransactionHistory,
-                                   StockUpdateService stockUpdateService
-                                   ) {
-        this.salesTransactionRepository = salesTransactionRepository;
-        this.salesTaxRepository = salesTaxRepository;
-        this.salesTransactionHistory = salesTransactionHistory;
-        this.stockUpdateService = stockUpdateService;
+  private final SalesTransactionRepository salesTransactionRepository;
+  private final SalesTaxRepository salesTaxRepository;
+  private final SalesTransactionHistory salesTransactionHistory;
+  private final StockUpdateService stockUpdateService;
+
+  public SalesTransactionService(SalesTransactionRepository salesTransactionRepository,
+                                 SalesTaxRepository salesTaxRepository,
+                                 SalesTransactionHistory salesTransactionHistory,
+                                 StockUpdateService stockUpdateService) {
+    this.salesTransactionRepository = salesTransactionRepository;
+    this.salesTaxRepository = salesTaxRepository;
+    this.salesTransactionHistory = salesTransactionHistory;
+    this.stockUpdateService = stockUpdateService;
+  }
+
+  public TaxResultDto calculateSalesTax(List<SalesDetailsDto> salesDetailsDtos) {
+    BigDecimal subtotal = salesDetailsDtos.stream()
+      .map(salesDetailsDto -> new BigDecimal(salesDetailsDto.salesPricePerUnit()).multiply(new BigDecimal(salesDetailsDto.quantity())))
+      .reduce(BigDecimal.ZERO, BigDecimal::add)
+      .setScale(2, RoundingMode.HALF_UP);
+
+    SalesTax salesTax = salesTaxRepository.findSalesTaxByTaxType(TaxType.GST)
+      .orElseGet(() -> {
+        SalesTax newSalesTax = new SalesTax(TaxType.GST, new BigDecimal("0.09"));
+        return salesTaxRepository.save(newSalesTax);
+      });
+
+    BigDecimal taxAmount = subtotal.multiply(salesTax.getTaxRate()).setScale(2, RoundingMode.HALF_UP);
+
+    return new TaxResultDto(
+      subtotal.toString(),
+      salesTax.getTaxType().name(),
+      salesTax.getTaxRate().toString(),
+      taxAmount.toString(),
+      subtotal.add(taxAmount).setScale(2, RoundingMode.HALF_UP).toString(),
+      salesDetailsDtos
+    );
+  }
+
+  @Transactional
+  public SalesTransactionResponseDto createSalesTransaction(SalesTransactionRequestDto requestDto) {
+    if (requestDto.salesDetails() == null || requestDto.salesDetails().isEmpty()) {
+      logger.warning("Attempted to create transaction with empty sales details.");
+      throw new BusinessException("EMPTY_SALE", "Sales details cannot be empty.");
     }
 
+    logger.info("Creating sales transaction for businessEntityId=" + requestDto.businessEntityId());
 
-    public TaxResultDto calculateSalesTax(List<SalesDetailsDto> salesDetailsDtos) {
-        BigDecimal subtotal = salesDetailsDtos.stream()
-                .map(salesDetailsDto -> new BigDecimal(salesDetailsDto.salesPricePerUnit()).multiply(new BigDecimal(salesDetailsDto.quantity())))
-                .reduce(BigDecimal.ZERO, BigDecimal::add)
-                .setScale(2, RoundingMode.HALF_UP);
+    SalesTax salesTax = salesTaxRepository.findSalesTaxByTaxType(TaxType.GST)
+      .orElseGet(() -> {
+        SalesTax newSalesTax = new SalesTax(TaxType.GST, new BigDecimal("0.09"));
+        return salesTaxRepository.save(newSalesTax);
+      });
 
-        SalesTax salesTax = salesTaxRepository.findSalesTaxByTaxType(TaxType.GST)
-                .orElseGet(() -> {
-                    SalesTax newSalesTax = new SalesTax(TaxType.GST, new BigDecimal("0.09"));
-                    return salesTaxRepository.save(newSalesTax);
-                });
+    SalesTransaction transaction = new SalesTransaction(requestDto.businessEntityId(), salesTax);
 
-        BigDecimal taxAmount = subtotal.multiply(salesTax.getTaxRate()).setScale(2, RoundingMode.HALF_UP);
+    Map<Long, SalesDetails> salesDetailEntities = requestDto.salesDetails().stream()
+      .map(salesDetailsDto -> new SalesDetails(
+        salesDetailsDto.productId(),
+        salesDetailsDto.quantity(),
+        new BigDecimal(salesDetailsDto.salesPricePerUnit())
+      ))
+      .collect(Collectors.toMap(
+        SalesDetails::getProductId,
+        detail -> detail,
+        (_, replacement) -> replacement
+      ));
 
-        return new TaxResultDto(subtotal.toString(),
-                salesTax.getTaxType().name(),
-                salesTax.getTaxRate().toString(),
-                taxAmount.toString(),
-                subtotal.add(taxAmount).setScale(2, RoundingMode.HALF_UP).toString(),
-                salesDetailsDtos);
+    transaction.addSalesDetails(salesDetailEntities);
+
+    try {
+      stockUpdateService.updateStocks(requestDto.businessEntityId(), salesDetailEntities);
+    } catch (BusinessException e) {
+      logger.severe("Inventory update failed during transaction creation: " + e.getMessage());
+      throw new BusinessException("INVENTORY_UPDATE_FAILED", "Inventory update failed: " + e.getMessage());
     }
 
-    /**
-     * Creates a new SalesTransaction with the provided details.
-     *
-     * @param requestDto the SalesTransactionRequestDto containing the details of the transaction
-     * @return the created SalesTransactionResponseDto
-     */
-    @Transactional
-    public SalesTransactionResponseDto createSalesTransaction(SalesTransactionRequestDto requestDto) {
+    transaction = salesTransactionRepository.save(transaction);
+    logger.info("Sales transaction created successfully with ID=" + transaction.getId());
 
-        SalesTax salesTax = salesTaxRepository.findSalesTaxByTaxType(TaxType.GST)
-                .orElseGet(() -> {
-                    SalesTax newSalesTax = new SalesTax(TaxType.GST, new BigDecimal("0.09"));
-                    return salesTaxRepository.save(newSalesTax);
-                });
+    return mapToResponseDto(transaction);
+  }
 
-        // Create a sales transaction with the provided businessEntityId and computed subtotal
-        SalesTransaction transaction = new SalesTransaction(requestDto.businessEntityId(), salesTax);
+  /**
+   * Updates an existing SalesTransaction with new sales details.
+   *
+   * @param transactionId       the ID of the SalesTransaction to update
+   * @param newSalesDetailsDtos the new sales details to update
+   * @return the updated SalesTransactionResponseDto
+   */
+  @Transactional
+  public SalesTransactionResponseDto updateSalesTransaction(Long transactionId, List<SalesDetailsDto> newSalesDetailsDtos) {
+    if (newSalesDetailsDtos == null || newSalesDetailsDtos.isEmpty()) {
+      logger.warning("Attempted to update transaction with empty sales details.");
+      throw new BusinessException("EMPTY_UPDATE", "New sales details cannot be empty.");
+    }
 
-        // map salesDetailsDto to salesDetails
-        Map<Long, SalesDetails> salesDetailEntities = requestDto.salesDetails().stream()
-        .map(salesDetailsDto -> new SalesDetails(
-                salesDetailsDto.productId(),
-                salesDetailsDto.quantity(),
-                new BigDecimal(salesDetailsDto.salesPricePerUnit())
+    logger.info("Updating sales transaction ID=" + transactionId + " with " + newSalesDetailsDtos.size() + " items.");
+
+    SalesTransaction existingTransaction = salesTransactionRepository.findById(transactionId)
+      .orElseThrow(() -> new BusinessException(ErrorCodes.NOT_FOUND, "Sales transaction not found for id: " + transactionId));
+
+    Map<Long, SalesDetails> existingDetails = existingTransaction.getSalesDetailEntities();
+
+    List<Long> missingProductIds = existingDetails.keySet().stream()
+      .filter(productId ->
+        newSalesDetailsDtos.stream()
+          .map(SalesDetailsDto::productId)
+          .noneMatch(id -> id.equals(productId))
+      )
+      .collect(Collectors.toList());
+
+    Map<Long, SalesDetails> reversalMap = missingProductIds.stream()
+      .collect(Collectors.toMap(
+        productId -> productId,
+        productId -> {
+          SalesDetails detail = existingDetails.get(productId);
+          return new SalesDetails(productId, -detail.getQuantity(), detail.getSalesPricePerUnit());
+        }
+      ));
+
+    Map<Long, SalesDetails> updateSalesDetailsMap = newSalesDetailsDtos.stream()
+      .collect(Collectors.toMap(
+        SalesDetailsDto::productId,
+        sdDTO -> {
+          long productId = sdDTO.productId();
+          int newQuantity = sdDTO.quantity();
+          BigDecimal newPrice = new BigDecimal(sdDTO.salesPricePerUnit());
+
+          if (existingDetails.containsKey(productId)) {
+            SalesDetails existingDetail = existingDetails.get(productId);
+            int deltaQuantity = newQuantity - existingDetail.getQuantity();
+            return new SalesDetails(productId, deltaQuantity, newPrice);
+          } else {
+            return new SalesDetails(productId, newQuantity, newPrice);
+          }
+        }
+      ));
+
+    updateSalesDetailsMap.putAll(reversalMap);
+
+    Map<Long, SalesDetails> newDetailsMap = newSalesDetailsDtos.stream()
+      .collect(Collectors.toMap(
+        SalesDetailsDto::productId,
+        sdDTO -> new SalesDetails(
+          sdDTO.productId(),
+          sdDTO.quantity(),
+          new BigDecimal(sdDTO.salesPricePerUnit())
+        )
+      ));
+
+    existingTransaction.updateSalesDetails(newDetailsMap);
+
+    try {
+      stockUpdateService.updateStocks(existingTransaction.getBusinessEntityId(), updateSalesDetailsMap);
+    } catch (BusinessException e) {
+      logger.severe("Inventory update failed during transaction update: " + e.getMessage());
+      throw new BusinessException("INVENTORY_UPDATE_FAILED", "Inventory update failed: " + e.getMessage());
+    }
+
+    salesTransactionRepository.saveAndFlush(existingTransaction);
+    logger.info("Sales transaction ID=" + transactionId + " updated successfully.");
+
+    return mapToResponseDto(existingTransaction);
+  }
+
+  public List<TransientSalesTransactionDto> suspendTransaction(SuspendedTransactionDto suspendedTransactionDto) {
+    if (suspendedTransactionDto.salesDetails() == null || suspendedTransactionDto.salesDetails().isEmpty()) {
+      logger.warning("Attempted to suspend transaction with empty sales details.");
+      throw new BusinessException("EMPTY_SALE", "Sales details cannot be empty.");
+    }
+
+    logger.info("Suspending transaction for businessEntityId=" + suspendedTransactionDto.businessEntityId());
+
+    SalesTax salesTax = salesTaxRepository.findSalesTaxByTaxType(TaxType.GST)
+      .orElseGet(() -> {
+        SalesTax newSalesTax = new SalesTax(TaxType.GST, new BigDecimal("0.09"));
+        return salesTaxRepository.save(newSalesTax);
+      });
+
+    SalesTransaction salesTransaction = new SalesTransaction(suspendedTransactionDto.businessEntityId(), salesTax);
+
+    Map<Long, SalesDetails> salesDetails = suspendedTransactionDto.salesDetails().stream()
+      .map(salesDetailsDto -> new SalesDetails(
+        salesDetailsDto.productId(),
+        salesDetailsDto.quantity(),
+        new BigDecimal(salesDetailsDto.salesPricePerUnit())
+      ))
+      .collect(Collectors.toMap(
+        SalesDetails::getProductId,
+        detail -> detail,
+        (_, replacement) -> replacement
+      ));
+
+    salesTransaction.addSalesDetails(salesDetails);
+
+    SalesTransactionMemento salesTransactionMemento = salesTransaction.saveToMemento();
+
+    Map<Long, SalesTransactionMemento> suspendedTransactions =
+      salesTransactionHistory.addTransaction(suspendedTransactionDto.businessEntityId(), salesTransactionMemento);
+
+    return suspendedTransactions.entrySet().stream()
+      .map(entry -> {
+        SalesTransactionMemento memento = entry.getValue();
+        SalesTransaction transaction = new SalesTransaction(memento.businessEntityId(), salesTax);
+        transaction.restoreFromMemento(memento);
+        return mapToTransientDto(transaction);
+      })
+      .toList();
+  }
+
+  public List<TransientSalesTransactionDto> restoreTransaction(Long businessEntityId, Long transactionId) {
+    logger.info("Restoring suspended transactionId=" + transactionId + " for businessEntityId=" + businessEntityId);
+
+    Map<Long, SalesTransactionMemento> suspendedTransactions =
+      salesTransactionHistory.deleteTransaction(businessEntityId, transactionId);
+
+    return suspendedTransactions.entrySet().stream()
+      .map(entry -> {
+        SalesTransactionMemento memento = entry.getValue();
+        SalesTransaction transaction = new SalesTransaction(
+          memento.businessEntityId(),
+          new SalesTax(TaxType.valueOf(memento.taxType()), new BigDecimal(memento.taxRate()))
+        );
+        transaction.restoreFromMemento(memento);
+        return mapToTransientDto(transaction);
+      })
+      .toList();
+  }
+
+  private TransientSalesTransactionDto mapToTransientDto(SalesTransaction salesTransaction) {
+    return new TransientSalesTransactionDto(
+      salesTransaction.getId(),
+      salesTransaction.getBusinessEntityId(),
+      salesTransaction.getSubtotal().toString(),
+      salesTransaction.getSalesTax().getTaxType().name(),
+      salesTransaction.getSalesTax().getTaxRate().toString(),
+      salesTransaction.getSalesTaxAmount().toString(),
+      salesTransaction.getTotal().toString(),
+      salesTransaction.getSalesDetailEntities().values().stream()
+        .map(salesDetails -> new SalesDetailsDto(
+          salesDetails.getProductId(),
+          salesDetails.getQuantity(),
+          salesDetails.getSalesPricePerUnit().toString()
         ))
-        .collect(Collectors.toMap(
-                SalesDetails::getProductId,
-                detail -> detail,
-                (_, replacement) -> replacement // handle duplicate keys if needed
-        ));
+        .toList(),
+      DateUtil.convertInstantToString(salesTransaction.getTransactionDate(), DateUtil.DATE_TIME_FORMAT)
+    );
+  }
 
-        // Add each SalesDetails to the transaction
-        transaction.addSalesDetails(salesDetailEntities);
-
-        // For each SalesDetails entry, update inventory
-        stockUpdateService.updateStocks(transaction);
-
-        transaction = salesTransactionRepository.save(transaction);
-
-        // map salesTransaction to salesTransactionResponseDto
-        return mapToResponseDto(transaction);
-    }
-
-    /**
-     * Updates an existing SalesTransaction with new sales details.
-     *
-     * @param transactionId       the ID of the SalesTransaction to update
-     * @param newSalesDetailsDtos the new sales details to update
-     * @return the updated SalesTransactionResponseDto
-     */
-    @Transactional
-    public SalesTransactionResponseDto updateSalesTransaction(Long transactionId, List<SalesDetailsDto> newSalesDetailsDtos) {
-        // Retrieve the existing transaction
-        SalesTransaction existingTransaction = salesTransactionRepository.findById(transactionId)
-                .orElseThrow(() -> new BusinessException(ErrorCodes.NOT_FOUND, "Sales transaction not found for id: " + transactionId));
-
-        // Create a new transaction object to hold the updated details
-        SalesTransaction updateTransaction = new SalesTransaction(existingTransaction.getBusinessEntityId(), existingTransaction.getSalesTax());
-
-        // Reverse inventory deduction for each old sales detail
-        stockUpdateService.addStocks(existingTransaction);
-
-        // Map new sales details DTOs to SalesDetails entities
-        List<SalesDetails> newSalesDetailEntities = newSalesDetailsDtos.stream()
-                .map(salesDetailsDto -> new SalesDetails(salesDetailsDto.productId(), salesDetailsDto.quantity(), new BigDecimal(salesDetailsDto.salesPricePerUnit())))
-                .toList();
-
-        existingTransaction.updateSalesDetails(newSalesDetailEntities);
-        
-        stockUpdateService.deductStocks(existingTransaction);
-
-        salesTransactionRepository.saveAndFlush(existingTransaction);
-
-        return mapToResponseDto(existingTransaction);
-    }
-
-    /**
-     * Suspends a transaction by saving its state to the history.
-     *
-     * @param suspendedTransactionDto the DTO containing the details of the suspended transaction
-     */
-    public List<TransientSalesTransactionDto> suspendTransaction(SuspendedTransactionDto suspendedTransactionDto) {
-        SalesTax salesTax = salesTaxRepository.findSalesTaxByTaxType(TaxType.GST)
-                .orElseGet(() -> {
-                    SalesTax newSalesTax = new SalesTax(TaxType.GST, new BigDecimal("0.09"));
-                    return salesTaxRepository.save(newSalesTax);
-                });
-
-        SalesTransaction salesTransaction = new SalesTransaction(suspendedTransactionDto.businessEntityId(), salesTax);
-
-        List<SalesDetails> salesDetails = suspendedTransactionDto.salesDetails().stream()
-                .map(salesDetailsDto -> new SalesDetails(salesDetailsDto.productId(), salesDetailsDto.quantity(), new BigDecimal(salesDetailsDto.salesPricePerUnit())))
-                .toList();
-
-        salesDetails.forEach(salesTransaction::addSalesDetails);
-
-        SalesTransactionMemento salesTransactionMemento = salesTransaction.saveToMemento();
-
-        Map<Long, SalesTransactionMemento> suspendedTransactions = salesTransactionHistory.addTransaction(suspendedTransactionDto.businessEntityId(), salesTransactionMemento);
-
-        // Map the suspended transactions to DTOs
-        return suspendedTransactions.entrySet().stream()
-                .map(entry -> {
-                    SalesTransactionMemento memento = entry.getValue();
-
-                    SalesTransaction transaction = new SalesTransaction(memento.businessEntityId(), salesTax);
-                    transaction.restoreFromMemento(memento);
-
-                    return mapToTransientDto(transaction);
-                })
-                .toList();
-    }
-
-    public List<TransientSalesTransactionDto> restoreTransaction(Long businessEntityId, Long transactionId) {
-        Map<Long, SalesTransactionMemento> suspendedTransactions = salesTransactionHistory.deleteTransaction(businessEntityId, transactionId);
-
-        // Map the suspended transactions to DTOs
-        return suspendedTransactions.entrySet().stream()
-                .map(entry -> {
-                    SalesTransactionMemento memento = entry.getValue();
-
-                    SalesTransaction transaction = new SalesTransaction(memento.businessEntityId(), new SalesTax(TaxType.valueOf(memento.taxType()), new BigDecimal(memento.taxRate())));
-                    transaction.restoreFromMemento(memento);
-
-                    return mapToTransientDto(transaction);
-                })
-                .toList();
-    }
-
-    private TransientSalesTransactionDto mapToTransientDto(SalesTransaction salesTransaction) {
-        return new TransientSalesTransactionDto(
-                salesTransaction.getId(),
-                salesTransaction.getBusinessEntityId(),
-                salesTransaction.getSubtotal().toString(),
-                salesTransaction.getSalesTax().getTaxType().name(),
-                salesTransaction.getSalesTax().getTaxRate().toString(),
-                salesTransaction.getSalesTaxAmount().toString(),
-                salesTransaction.getTotal().toString(),
-                salesTransaction.getSalesDetailEntities().stream()
-                        .map(salesDetails -> new SalesDetailsDto(
-                                salesDetails.getProductId(),
-                                salesDetails.getQuantity(),
-                                salesDetails.getSalesPricePerUnit().toString()
-                        ))
-                        .toList(),
-                DateUtil.convertInstantToString(salesTransaction.getTransactionDate(), DateUtil.DATE_TIME_FORMAT)
-        );
-    }
-
-    private SalesTransactionResponseDto mapToResponseDto(SalesTransaction salesTransaction) {
-        return new SalesTransactionResponseDto(
-                salesTransaction.getId(),
-                salesTransaction.getBusinessEntityId(),
-                salesTransaction.getSubtotal().toString(),
-                salesTransaction.getSalesTax().getTaxType().name(),
-                salesTransaction.getSalesTax().getTaxRate().toString(),
-                salesTransaction.getSalesTaxAmount().toString(),
-                salesTransaction.getTotal().toString(),
-                salesTransaction.getSalesDetailEntities().stream()
-                        .map(salesDetails -> new SalesDetailsDto(
-                                salesDetails.getProductId(),
-                                salesDetails.getQuantity(),
-                                salesDetails.getSalesPricePerUnit().toString()
-                        ))
-                        .toList(),
-                DateUtil.convertInstantToString(salesTransaction.getTransactionDate(), DateUtil.DATE_TIME_FORMAT)
-        );
-    }
+  private SalesTransactionResponseDto mapToResponseDto(SalesTransaction salesTransaction) {
+    return new SalesTransactionResponseDto(
+      salesTransaction.getId(),
+      salesTransaction.getBusinessEntityId(),
+      salesTransaction.getSubtotal().toString(),
+      salesTransaction.getSalesTax().getTaxType().name(),
+      salesTransaction.getSalesTax().getTaxRate().toString(),
+      salesTransaction.getSalesTaxAmount().toString(),
+      salesTransaction.getTotal().toString(),
+      salesTransaction.getSalesDetailEntities().values().stream()
+        .map(salesDetails -> new SalesDetailsDto(
+          salesDetails.getProductId(),
+          salesDetails.getQuantity(),
+          salesDetails.getSalesPricePerUnit().toString()
+        ))
+        .toList(),
+      DateUtil.convertInstantToString(salesTransaction.getTransactionDate(), DateUtil.DATE_TIME_FORMAT)
+    );
+  }
 }
