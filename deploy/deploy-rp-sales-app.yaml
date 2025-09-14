@@ -10,7 +10,7 @@ data:
 
     auth:
       enabled: false
-      origin: "http://localhost:4200"
+      origin: "http://localhost:30080" #"http://localhost:4200"
       jwt:
         key:
           set:

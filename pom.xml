@@ -14,7 +14,6 @@
     <name>retailpulse-salesMicroservice</name>
     <description>Microservice to handle sales transaction.</description>
 
-    <!-- Add this dependency management section -->
     <dependencyManagement>
         <dependencies>
             <dependency>
