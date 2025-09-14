@@ -44,7 +44,7 @@ data:
     SET character_set_client = @saved_cs_client */;\r\n\r\n--\r\n-- Dumping data for
     table `sales_tax`\r\n--\r\n\r\nLOCK TABLES `sales_tax` WRITE;\r\n/*!40000 ALTER
     TABLE `sales_tax` DISABLE KEYS */;\r\nINSERT INTO `sales_tax` (`id`, `tax_rate`,
-    `tax_type`) VALUES (1, 9.00, 'GST');\r\n/*!40000 ALTER TABLE `sales_tax` ENABLE
+    `tax_type`) VALUES (1, 0.09, 'GST');\r\n/*!40000 ALTER TABLE `sales_tax` ENABLE
     KEYS */;\r\nUNLOCK TABLES;\r\n\r\n--\r\n-- Table structure for table `sales_transaction`\r\n--\r\n\r\nDROP
     TABLE IF EXISTS `sales_transaction`;\r\n/*!40101 SET @saved_cs_client     = @@character_set_client
     */;\r\n/*!50503 SET character_set_client = utf8mb4 */;\r\nCREATE TABLE `sales_transaction`
