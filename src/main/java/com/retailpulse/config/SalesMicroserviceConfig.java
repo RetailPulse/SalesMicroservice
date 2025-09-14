@@ -21,70 +21,68 @@ import java.util.List;
 @Configuration
 public class SalesMicroserviceConfig {
 
-  @Value("${auth.jwt.key.set.uri}")
-  private String keySetUri;
+    @Value("${auth.jwt.key.set.uri}")
+    private String keySetUri;
 
-  @Value("${auth.enabled}")
-  private boolean authEnabled;
+    @Value("${auth.enabled}")
+    private boolean authEnabled;
 
-  @Value("${auth.origin}")
-  private String originURL;
+    @Value("${auth.origin}")
+    private String originURL;
 
-  @Bean
-  public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-    
-    // Enable CORS
-    http
-    .cors(c -> {c.configurationSource(corsConfigurationSource());})
-    .csrf(c -> c.disable());
+    @Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        if (authEnabled) {
+            System.out.println("Auth enabled");
+            http.oauth2ResourceServer(
+                    c -> c.jwt(
+                            j -> j.jwkSetUri(keySetUri).jwtAuthenticationConverter(jwtAuthenticationConverter())
+                    )
+            );
 
-    if (authEnabled) {
-      System.out.println("Auth enabled");
-      http.oauth2ResourceServer(
-          c -> c.jwt(
-            j -> j.jwkSetUri(keySetUri).jwtAuthenticationConverter(jwtAuthenticationConverter())
-          )
-      );
+            http.authorizeHttpRequests(
+                    c -> c.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                            .requestMatchers("/hello").authenticated()
+                            .requestMatchers("/api/**").authenticated() //.hasRole("SUPER").anyRequest().authenticated()
+            );
+        } else {
+            System.out.println("No auth enabled");
+            http.authorizeHttpRequests(
+                    c -> c.anyRequest().permitAll()
+            );
+            http.csrf(csrf -> csrf.disable());
+        }
 
-      http.authorizeHttpRequests(
-        c -> c.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-          .requestMatchers("/hello").authenticated()
-          .requestMatchers("/api/**").authenticated() //.hasRole("SUPER").anyRequest().authenticated()
-      );
-    } else {
-      System.out.println("No auth enabled");
-      http.authorizeHttpRequests(auth -> auth.anyRequest().permitAll());
-      // http.authorizeHttpRequests(        
-      //   c -> c.anyRequest().permitAll()
-      // );
+        http.cors(c -> {
+            c.configurationSource(corsConfigurationSource());
+        });
+
+        return http.build();
     }
 
-    return http.build();
-  }
+    private CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+        configuration.setAllowedOrigins(List.of(originURL));
+        configuration.setAllowedMethods(List.of("GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+        configuration.setExposedHeaders(List.of("Authorization"));
+        configuration.setAllowCredentials(true);
 
-  private CorsConfigurationSource corsConfigurationSource() {
-    CorsConfiguration configuration = new CorsConfiguration();
-    configuration.setAllowedOrigins(List.of(originURL));
-    configuration.setAllowedMethods(List.of("GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"));
-    configuration.setAllowedHeaders(List.of("Authorization", "Content-Type"));
-    configuration.setExposedHeaders(List.of("Authorization"));
-    configuration.setAllowCredentials(true);
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
+    }
 
-    UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-    source.registerCorsConfiguration("/**", configuration);
-    return source;
-  }
+    private JwtAuthenticationConverter jwtAuthenticationConverter() {
+        JwtAuthenticationConverter jwtAuthenticationConverter = new JwtAuthenticationConverter();
+        jwtAuthenticationConverter.setJwtGrantedAuthoritiesConverter(jwtGrantedAuthoritiesConverter());
+        return jwtAuthenticationConverter;
+    }
 
-  private JwtAuthenticationConverter jwtAuthenticationConverter() {
-    JwtAuthenticationConverter jwtAuthenticationConverter = new JwtAuthenticationConverter();
-    jwtAuthenticationConverter.setJwtGrantedAuthoritiesConverter(jwtGrantedAuthoritiesConverter());
-    return jwtAuthenticationConverter;
-  }
-
-  private JwtGrantedAuthoritiesConverter jwtGrantedAuthoritiesConverter() {
-    JwtGrantedAuthoritiesConverter jwtGrantedAuthoritiesConverter = new JwtGrantedAuthoritiesConverter();
-    jwtGrantedAuthoritiesConverter.setAuthoritiesClaimName("roles");
-    jwtGrantedAuthoritiesConverter.setAuthorityPrefix("ROLE_");
-    return jwtGrantedAuthoritiesConverter;
-  }
+    private JwtGrantedAuthoritiesConverter jwtGrantedAuthoritiesConverter() {
+        JwtGrantedAuthoritiesConverter jwtGrantedAuthoritiesConverter = new JwtGrantedAuthoritiesConverter();
+        jwtGrantedAuthoritiesConverter.setAuthoritiesClaimName("roles");
+        jwtGrantedAuthoritiesConverter.setAuthorityPrefix("ROLE_");
+        return jwtGrantedAuthoritiesConverter;
+    }
 }

@@ -64,7 +64,7 @@ CREATE TABLE `sales_tax` (
 
 LOCK TABLES `sales_tax` WRITE;
 /*!40000 ALTER TABLE `sales_tax` DISABLE KEYS */;
-INSERT INTO `sales_tax` (`id`, `tax_rate`, `tax_type`) VALUES (1, 9.00, 'GST');
+INSERT INTO `sales_tax` (`id`, `tax_rate`, `tax_type`) VALUES (1, 0.09, 'GST');
 /*!40000 ALTER TABLE `sales_tax` ENABLE KEYS */;
 UNLOCK TABLES;
 
