@@ -30,7 +30,7 @@ data:
         show-sql: true
         
     inventory-service:
-      url: http://svc-rp-inventory:8085
+      url: http://svc-rp-inventory:8084
 
     logging:
       level:

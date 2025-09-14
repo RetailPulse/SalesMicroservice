@@ -11,6 +11,7 @@ import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Getter
 @Entity
@@ -49,11 +50,13 @@ public class SalesTransaction {
     }
 
     public void addSalesDetails(Map<Long, SalesDetails> details) {
-        details.forEach((productId, salesDetails) -> {
-            salesDetails.setSalesTransaction(this);
-            this.salesDetailEntities.put(productId, salesDetails);
-        });
-        recalculateTotal();
+        this.salesDetailEntities = details.entrySet().stream()
+            .peek(entry -> entry.getValue().setSalesTransaction(this))
+            .collect(Collectors.toMap(
+                Map.Entry::getKey,
+                Map.Entry::getValue
+            ));
+        recalculateTotal(); 
     }
 
     public void updateSalesDetails(Map<Long, SalesDetails> details) {
