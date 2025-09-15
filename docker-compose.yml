@@ -30,10 +30,12 @@ services:
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql-rp-sales:3306/RPSalesDB 
       SPRING_DATASOURCE_USERNAME: root
       SPRING_DATASOURCE_PASSWORD: password
-      SERVER_PORT: 8092
+      JPA_HIBERNATE_DDL_AUTO: update
+      INVENTORY_SERVICE_URL: http://app-rp-inventory:8084
+      SERVER_PORT: 8085
       AUTH_SERVER_URL: http://app-iam:8081
     ports:
-      - "8092:8092"
+      - "8085:8085"
     depends_on:
       mysql-rp-sales:
         condition: service_healthy
@@ -45,6 +47,7 @@ services:
 networks:
   retailpulse-network:
     driver: bridge
+    external: true
 
 volumes:
   mysql_sales_vol:

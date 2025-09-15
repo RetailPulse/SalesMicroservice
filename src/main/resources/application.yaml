@@ -1,4 +1,4 @@
-server.port: 8092
+server.port: 8085
 
 auth:
   enabled: false
@@ -19,7 +19,7 @@ spring:
     show-sql: true
     
 inventory-service:
-    url: http://localhost:8085
+    url: http://app-rp-inventory:8084
 
 logging:
   level:

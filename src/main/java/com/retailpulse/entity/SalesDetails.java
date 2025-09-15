@@ -21,9 +21,11 @@ public class SalesDetails {
     @Column(nullable = false)
     private Long productId;
 
+    @Setter
     @Column(nullable = false)
     private int quantity;
 
+    @Setter
     @Column(nullable = false)
     private BigDecimal salesPricePerUnit;
 

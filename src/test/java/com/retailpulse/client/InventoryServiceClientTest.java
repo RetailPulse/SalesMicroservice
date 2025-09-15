@@ -17,7 +17,7 @@ class InventoryServiceClientTest {
     private InventoryServiceClient inventoryServiceClient;
 
     @Test
-    void shouldCallDeductStockMethod() {
+    void shouldCallUpdateStockMethod() {
         // Given
         InventoryUpdateRequestDto.InventoryItem item = 
             new InventoryUpdateRequestDto.InventoryItem(1L, 5);
@@ -26,27 +26,9 @@ class InventoryServiceClientTest {
         );
 
         // When
-        inventoryServiceClient.deductStock(requestDto);
+        inventoryServiceClient.updateStocks(requestDto);
 
         // Then
-        verify(inventoryServiceClient, times(1)).deductStock(requestDto);
-        verify(inventoryServiceClient, never()).addStock(any());
-    }
-
-    @Test
-    void shouldCallAddStockMethod() {
-        // Given
-        InventoryUpdateRequestDto.InventoryItem item = 
-            new InventoryUpdateRequestDto.InventoryItem(1L, 3);
-        InventoryUpdateRequestDto requestDto = new InventoryUpdateRequestDto(
-            200L, List.of(item)
-        );
-
-        // When
-        inventoryServiceClient.addStock(requestDto);
-
-        // Then
-        verify(inventoryServiceClient, times(1)).addStock(requestDto);
-        verify(inventoryServiceClient, never()).deductStock(any());
+        verify(inventoryServiceClient, times(1)).updateStocks(requestDto);
     }
 }

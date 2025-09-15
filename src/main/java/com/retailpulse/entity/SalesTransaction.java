@@ -9,8 +9,9 @@ import org.hibernate.annotations.CreationTimestamp;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Getter
 @Entity
@@ -29,17 +30,17 @@ public class SalesTransaction {
 
     private BigDecimal salesTaxAmount;
 
-    private BigDecimal subtotal; // subtotal of items without tax
+    private BigDecimal subtotal;
 
-    private BigDecimal total; // total of items with tax
+    private BigDecimal total;
 
     @Column(nullable = false)
     @CreationTimestamp
-    // Automatically set when the entity is persisted
     private Instant transactionDate;
 
     @OneToMany(cascade = CascadeType.ALL, mappedBy = "salesTransaction", orphanRemoval = true)
-    private List<SalesDetails> salesDetailEntities = new ArrayList<>();
+    @MapKey(name = "productId")
+    private Map<Long, SalesDetails> salesDetailEntities = new HashMap<>();
 
     protected SalesTransaction() {}
 
@@ -48,18 +49,19 @@ public class SalesTransaction {
         this.salesTax = salesTax;
     }
 
-    public void addSalesDetails(SalesDetails detail) {
-        detail.setSalesTransaction(this);
-        salesDetailEntities.add(detail);
-        recalculateTotal();
+    public void addSalesDetails(Map<Long, SalesDetails> details) {
+        this.salesDetailEntities = details.entrySet().stream()
+            .peek(entry -> entry.getValue().setSalesTransaction(this))
+            .collect(Collectors.toMap(
+                Map.Entry::getKey,
+                Map.Entry::getValue
+            ));
+        recalculateTotal(); 
     }
 
-    public void updateSalesDetails(List<SalesDetails> details) {
+    public void updateSalesDetails(Map<Long, SalesDetails> details) {
         this.salesDetailEntities.clear();
-
-        for (SalesDetails detail : details) {
-            this.addSalesDetails(detail);
-        }
+        this.addSalesDetails(details);
     }
 
     public SalesTransactionMemento saveToMemento() {
@@ -71,7 +73,7 @@ public class SalesTransaction {
                 this.salesTax.getTaxRate().toPlainString(),
                 this.salesTaxAmount.toPlainString(),
                 this.total.toPlainString(),
-                this.salesDetailEntities.stream().map(
+                this.salesDetailEntities.values().stream().map(
                         salesDetails -> new SalesDetailsDto(
                                 salesDetails.getProductId(),
                                 salesDetails.getQuantity(),
@@ -91,20 +93,22 @@ public class SalesTransaction {
         this.total = new BigDecimal(memento.totalAmount());
         this.transactionDate = DateUtil.convertStringToInstant(memento.transactionDateTime(), DateUtil.DATE_TIME_FORMAT);
 
-        for (SalesDetailsDto salesDetailsDto : memento.salesDetails()) {
-            SalesDetails salesDetails = new SalesDetails(
-                    salesDetailsDto.productId(),
-                    salesDetailsDto.quantity(),
-                    new BigDecimal(salesDetailsDto.salesPricePerUnit())
+        Map<Long, SalesDetails> restoredDetails = new HashMap<>();
+        for (SalesDetailsDto dto : memento.salesDetails()) {
+            SalesDetails detail = new SalesDetails(
+                    dto.productId(),
+                    dto.quantity(),
+                    new BigDecimal(dto.salesPricePerUnit())
             );
-            this.addSalesDetails(salesDetails);
+            restoredDetails.put(dto.productId(), detail);           
         }
+        this.addSalesDetails(restoredDetails);
 
         return this;
     }
 
     private void recalculateTotal() {
-        BigDecimal subtotal = salesDetailEntities.stream()
+        BigDecimal subtotal = salesDetailEntities.values().stream()
                 .map(SalesDetails::getSubTotal)
                 .reduce(BigDecimal.ZERO, BigDecimal::add)
                 .setScale(2, RoundingMode.HALF_UP);
@@ -112,5 +116,4 @@ public class SalesTransaction {
         this.salesTaxAmount = salesTax.calculateTax(subtotal);
         this.total = subtotal.add(salesTaxAmount).setScale(2, RoundingMode.HALF_UP);
     }
-
 }
