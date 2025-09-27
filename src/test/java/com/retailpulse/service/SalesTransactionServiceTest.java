@@ -1,8 +1,10 @@
 package com.retailpulse.service;
 
+import com.retailpulse.client.PaymentServiceClient;
 import com.retailpulse.dto.request.SalesDetailsDto;
 import com.retailpulse.dto.request.SalesTransactionRequestDto;
 import com.retailpulse.dto.request.SuspendedTransactionDto;
+import com.retailpulse.dto.response.CreateTransactionResponseDto;
 import com.retailpulse.dto.response.SalesTransactionResponseDto;
 import com.retailpulse.dto.response.TaxResultDto;
 import com.retailpulse.dto.response.TransientSalesTransactionDto;
@@ -41,6 +43,9 @@ public class SalesTransactionServiceTest {
 
   @Mock
   private StockUpdateService stockUpdateService;
+
+  @Mock
+  private PaymentServiceClient paymentServiceClient;
 
   @Mock
   private SalesTransactionHistory salesTransactionHistory;
@@ -96,12 +101,12 @@ public class SalesTransactionServiceTest {
     when(salesTaxRepository.findSalesTaxByTaxType(TaxType.GST)).thenReturn(Optional.of(dummySalesTax));
     when(salesTransactionRepository.save(any(SalesTransaction.class))).thenReturn(dummySalesTransaction);
 
-    SalesTransactionResponseDto response = salesTransactionService.createSalesTransaction(salesTransactionRequestDto);
+    CreateTransactionResponseDto response = salesTransactionService.createSalesTransaction(salesTransactionRequestDto);
 
-    assertEquals(1L, response.businessEntityId());
-    assertEquals("1200.00", response.subTotalAmount());
-    assertEquals("108.00", response.taxAmount());
-    assertEquals("1308.00", response.totalAmount());
+    assertEquals(1L, response.transaction().businessEntityId());
+    assertEquals("1200.00", response.transaction().subTotalAmount());
+    assertEquals("108.00", response.transaction().taxAmount());
+    assertEquals("1308.00", response.transaction().totalAmount());
 
     verify(stockUpdateService, times(1)).updateStocks(eq(1L), any());
     verify(salesTransactionRepository, times(1)).save(any(SalesTransaction.class));
