@@ -3,6 +3,9 @@ package com.retailpulse.service;
 import com.retailpulse.dto.request.SalesDetailsDto;
 import com.retailpulse.dto.request.SalesTransactionRequestDto;
 import com.retailpulse.dto.request.SuspendedTransactionDto;
+import com.retailpulse.dto.request.PaymentRequestDto;
+import com.retailpulse.dto.response.CreateTransactionResponseDto;
+import com.retailpulse.dto.response.PaymentResponseDto;
 import com.retailpulse.dto.response.SalesTransactionResponseDto;
 import com.retailpulse.dto.response.TaxResultDto;
 import com.retailpulse.dto.response.TransientSalesTransactionDto;
@@ -14,6 +17,9 @@ import com.retailpulse.exception.BusinessException;
 import com.retailpulse.util.DateUtil;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import com.retailpulse.client.InventoryServiceClient;
+import com.retailpulse.client.PaymentServiceClient;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -31,15 +37,18 @@ public class SalesTransactionService {
   private final SalesTaxRepository salesTaxRepository;
   private final SalesTransactionHistory salesTransactionHistory;
   private final StockUpdateService stockUpdateService;
+  private final PaymentServiceClient paymentServiceClient;
 
   public SalesTransactionService(SalesTransactionRepository salesTransactionRepository,
                                  SalesTaxRepository salesTaxRepository,
                                  SalesTransactionHistory salesTransactionHistory,
-                                 StockUpdateService stockUpdateService) {
+                                 StockUpdateService stockUpdateService,
+                                 PaymentServiceClient paymentServiceClient) {
     this.salesTransactionRepository = salesTransactionRepository;
     this.salesTaxRepository = salesTaxRepository;
     this.salesTransactionHistory = salesTransactionHistory;
     this.stockUpdateService = stockUpdateService;
+    this.paymentServiceClient = paymentServiceClient;
   }
 
   public TaxResultDto calculateSalesTax(List<SalesDetailsDto> salesDetailsDtos) {
@@ -67,7 +76,7 @@ public class SalesTransactionService {
   }
 
   @Transactional
-  public SalesTransactionResponseDto createSalesTransaction(SalesTransactionRequestDto requestDto) {
+  public CreateTransactionResponseDto createSalesTransaction(SalesTransactionRequestDto requestDto) {
     if (requestDto.salesDetails() == null || requestDto.salesDetails().isEmpty()) {
       logger.warning("Attempted to create transaction with empty sales details.");
       throw new BusinessException("EMPTY_SALE", "Sales details cannot be empty.");
@@ -107,7 +116,40 @@ public class SalesTransactionService {
     transaction = salesTransactionRepository.save(transaction);
     logger.info("Sales transaction created successfully with ID=" + transaction.getId());
 
-    return mapToResponseDto(transaction);
+    BigDecimal totalAmount = transaction.getTotal(); // Assuming getTotal() returns BigDecimal
+    Long transactionId = transaction.getId();
+    // Handle potential null totalAmount gracefully if needed
+    if (totalAmount == null) {
+      logger.severe("Transaction total amount is null for transaction ID=" + transactionId);
+      // Clean up preliminary transaction if desired
+      // salesTransactionRepository.deleteById(transactionId);
+      throw new BusinessException("TRANSACTION_TOTAL_NULL", "Transaction total amount is null.");
+    }
+
+    PaymentRequestDto paymentData = new PaymentRequestDto(
+      String.valueOf(transactionId), "RetailPulse Payment", 
+      totalAmount.doubleValue(), 
+      "SGD", 
+      "pos@retailpulse.com", 
+      "card"
+    ); 
+    logger.info("Prepared payment data for transaction ID=" + transactionId + ", amount=" + totalAmount);
+
+    PaymentResponseDto paymentResponseDto;
+        try {
+            paymentResponseDto = paymentServiceClient.createPaymentIntent(paymentData);
+            logger.info("Received payment intent for transaction ID=" + transactionId);
+        } catch (Exception e) { // Catch Feign exceptions (FeignException, RetryableException, etc.)
+            logger.severe("Call to Payment Microservice failed for transaction ID=" + transactionId + ": " + e.getMessage());            
+            throw new BusinessException("PAYMENT_SERVICE_ERROR", "Failed to initiate payment: " + e.getMessage());
+        }
+
+    SalesTransactionResponseDto transactionResponseDto = mapToResponseDto(transaction);
+
+    CreateTransactionResponseDto responseDto = new CreateTransactionResponseDto(transactionResponseDto, paymentResponseDto);
+    logger.info("Successfully created transaction response for transaction ID=" + transactionId);
+
+    return responseDto;
   }
 
   /**

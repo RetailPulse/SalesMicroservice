@@ -22,6 +22,9 @@ spring:
 inventory-service:
     url: http://app-rp-inventory:8084
 
+payment-service:
+    url: http://app-rp-payment:8087
+
 logging:
   level:
     root: INFO

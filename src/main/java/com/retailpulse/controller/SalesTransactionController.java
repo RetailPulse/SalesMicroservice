@@ -3,6 +3,7 @@ package com.retailpulse.controller;
 import com.retailpulse.dto.request.SalesDetailsDto;
 import com.retailpulse.dto.request.SalesTransactionRequestDto;
 import com.retailpulse.dto.request.SuspendedTransactionDto;
+import com.retailpulse.dto.response.CreateTransactionResponseDto;
 import com.retailpulse.dto.response.SalesTransactionResponseDto;
 import com.retailpulse.dto.response.TaxResultDto;
 import com.retailpulse.dto.response.TransientSalesTransactionDto;
@@ -37,8 +38,8 @@ public class SalesTransactionController {
      * @return the created SalesTransaction
      */
     @PostMapping("/createTransaction")
-    public ResponseEntity<SalesTransactionResponseDto> createSalesTransaction(@RequestBody SalesTransactionRequestDto requestDto) {
-        SalesTransactionResponseDto responseDto = salesTransactionService.createSalesTransaction(requestDto);
+    public ResponseEntity<CreateTransactionResponseDto> createSalesTransaction(@RequestBody SalesTransactionRequestDto requestDto) {
+        CreateTransactionResponseDto responseDto = salesTransactionService.createSalesTransaction(requestDto);
         return new ResponseEntity<>(responseDto, HttpStatus.OK);
     }
 

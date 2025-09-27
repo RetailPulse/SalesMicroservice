@@ -15,6 +15,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.math.BigDecimal;
 import java.util.List;
 
+import com.retailpulse.client.PaymentServiceClient;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
@@ -30,6 +32,9 @@ public class SalesTransactionMementoTest {
 
     @Mock
     private StockUpdateService stockUpdateService;
+
+    @Mock
+    private PaymentServiceClient paymentServiceClient;
 
     // TODO: Modify to use inventory service mock instead start
     @Test
@@ -49,7 +54,7 @@ public class SalesTransactionMementoTest {
 
         SalesTransactionHistory salesTransactionHistory = new SalesTransactionHistory();
        
-        SalesTransactionService salesTransactionService = new SalesTransactionService(salesTransactionRepository, salesTaxRepository, salesTransactionHistory, stockUpdateService);
+        SalesTransactionService salesTransactionService = new SalesTransactionService(salesTransactionRepository, salesTaxRepository, salesTransactionHistory, stockUpdateService, paymentServiceClient);
 
         salesTransactionService.suspendTransaction(suspendedTransactionDto1);
         salesTransactionService.suspendTransaction(suspendedTransactionDto2);
