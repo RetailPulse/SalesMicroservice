@@ -1,4 +1,5 @@
-server.port: 8085
+server: 
+  port: 8085
 
 auth:
   enabled: false

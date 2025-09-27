@@ -61,10 +61,28 @@ spec:
       labels:
         app: deploy-rp-sales
     spec:
+      initContainers:
+        # Wait for MySQL Service to be reachable
+        - name: wait-for-mysql
+          image: busybox:1.35
+          command:
+            - sh
+            - -c
+            - >
+              until nc -z mysql-rp-sales 3306; do
+                echo "Waiting for MySQL at mysql-rp-sales:3306...";
+                sleep 5;
+              done;
+              echo "MySQL is ready!";
+          env:
+            - name: MYSQL_HOST
+              value: mysql-rp-sales
+            - name: MYSQL_PORT
+              value: "3306"
       containers:
-      - image: docker.io/casperyap/rp-sales-app:v0.1.0
+      - image: rp-sales-app:v0.1.0 #docker.io/casperyap/
         name: app-rp-sales
-        imagePullPolicy: Always        
+        imagePullPolicy: Never # Always        
         volumeMounts:
         - name: config-volume
           mountPath: /app/config
