@@ -4,6 +4,8 @@ import com.retailpulse.dto.request.SalesDetailsDto;
 import com.retailpulse.util.DateUtil;
 import jakarta.persistence.*;
 import lombok.Getter;
+import lombok.Setter;
+
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.math.BigDecimal;
@@ -34,6 +36,8 @@ public class SalesTransaction {
 
     private BigDecimal total;
 
+    private TransactionStatus status;
+
     @Column(nullable = false)
     @CreationTimestamp
     private Instant transactionDate;
@@ -47,6 +51,7 @@ public class SalesTransaction {
     public SalesTransaction(Long businessEntityId, SalesTax salesTax) {
         this.businessEntityId = businessEntityId;
         this.salesTax = salesTax;
+        this.status = TransactionStatus.PENDING_PAYMENT;
     }
 
     public void addSalesDetails(Map<Long, SalesDetails> details) {
@@ -57,6 +62,10 @@ public class SalesTransaction {
                 Map.Entry::getValue
             ));
         recalculateTotal(); 
+    }
+
+    public void setStatus(TransactionStatus status) {
+        this.status = status;
     }
 
     public void updateSalesDetails(Map<Long, SalesDetails> details) {
@@ -80,6 +89,7 @@ public class SalesTransaction {
                                 salesDetails.getSalesPricePerUnit().toString()
                         )
                 ).toList(),
+                this.status.name(),
                 DateUtil.convertInstantToString(Instant.now(), DateUtil.DATE_TIME_FORMAT)
         );
     }

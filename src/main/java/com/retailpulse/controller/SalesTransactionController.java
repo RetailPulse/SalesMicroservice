@@ -6,6 +6,7 @@ import com.retailpulse.dto.request.SuspendedTransactionDto;
 import com.retailpulse.dto.response.CreateTransactionResponseDto;
 import com.retailpulse.dto.response.SalesTransactionResponseDto;
 import com.retailpulse.dto.response.TaxResultDto;
+import com.retailpulse.dto.response.TransactionStatusResponseDto;
 import com.retailpulse.dto.response.TransientSalesTransactionDto;
 import com.retailpulse.service.SalesTransactionService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,56 +19,67 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/sales")
 public class SalesTransactionController {
-    private final SalesTransactionService salesTransactionService;
+  private final SalesTransactionService salesTransactionService;
 
-    @Autowired
-    public SalesTransactionController(SalesTransactionService salesTransactionService) {
-        this.salesTransactionService = salesTransactionService;
-    }
+  @Autowired
+  public SalesTransactionController(SalesTransactionService salesTransactionService) {
+    this.salesTransactionService = salesTransactionService;
+  }
 
-    @PostMapping("/calculateSalesTax")
-    public ResponseEntity<TaxResultDto> calculateSalesTax(@RequestBody List<SalesDetailsDto> salesDetailsDtos) {
-        TaxResultDto taxResultDto = salesTransactionService.calculateSalesTax(salesDetailsDtos);
-        return ResponseEntity.ok(taxResultDto);
-    }
+  @PostMapping("/calculateSalesTax")
+  public ResponseEntity<TaxResultDto> calculateSalesTax(@RequestBody List<SalesDetailsDto> salesDetailsDtos) {
+    TaxResultDto taxResultDto = salesTransactionService.calculateSalesTax(salesDetailsDtos);
+    return ResponseEntity.ok(taxResultDto);
+  }
 
-    /**
-     * Endpoint to create a new SalesTransaction.
-     *
-     * @param requestDto the SalesTransactionRequestDto containing transaction details
-     * @return the created SalesTransaction
-     */
-    @PostMapping("/createTransaction")
-    public ResponseEntity<CreateTransactionResponseDto> createSalesTransaction(@RequestBody SalesTransactionRequestDto requestDto) {
-        CreateTransactionResponseDto responseDto = salesTransactionService.createSalesTransaction(requestDto);
-        return new ResponseEntity<>(responseDto, HttpStatus.OK);
-    }
+  /**
+   * Endpoint to get the current status of a SalesTransaction.
+   *
+   * @param transactionId the ID of the SalesTransaction
+   * @return ResponseEntity containing the TransactionStatusResponseDto
+   */
+  @GetMapping("/transactionStatus/{transactionId}")
+  public ResponseEntity<TransactionStatusResponseDto> getTransactionStatus(@PathVariable Long transactionId) {
+    TransactionStatusResponseDto statusDto = salesTransactionService.getTransactionStatus(transactionId);
+    return ResponseEntity.ok(statusDto);
+  }
 
-    /**
-     * Endpoint to update an existing SalesTransaction.
-     *
-     * @param transactionId          the ID of the SalesTransaction to update
-     * @param newSalesDetailEntities a list of new SalesDetails to replace the old ones
-     * @return the updated SalesTransaction
-     */
-    @PutMapping("updateSalesTransaction/{transactionId}")
-    public ResponseEntity<SalesTransactionResponseDto> updateSalesTransaction(
-            @PathVariable Long transactionId,
-            @RequestBody List<SalesDetailsDto> newSalesDetailEntities) {
-        SalesTransactionResponseDto updatedTransaction = salesTransactionService.updateSalesTransaction(transactionId, newSalesDetailEntities);
-        return ResponseEntity.ok(updatedTransaction);
-    }
+  /**
+   * Endpoint to create a new SalesTransaction.
+   *
+   * @param requestDto the SalesTransactionRequestDto containing transaction details
+   * @return the created SalesTransaction
+   */
+  @PostMapping("/createTransaction")
+  public ResponseEntity<CreateTransactionResponseDto> createSalesTransaction(@RequestBody SalesTransactionRequestDto requestDto) {
+    CreateTransactionResponseDto responseDto = salesTransactionService.createSalesTransaction(requestDto);
+    return new ResponseEntity<>(responseDto, HttpStatus.OK);
+  }
 
-    @PostMapping("/suspend")
-    public ResponseEntity<List<TransientSalesTransactionDto>> suspendTransaction(@RequestBody SuspendedTransactionDto suspendedTransactionDto) {
-        List<TransientSalesTransactionDto> transactionHistory = salesTransactionService.suspendTransaction(suspendedTransactionDto);
-        return ResponseEntity.ok(transactionHistory);
-    }
+  /**
+   * Endpoint to update an existing SalesTransaction.
+   *
+   * @param transactionId          the ID of the SalesTransaction to update
+   * @param newSalesDetailEntities a list of new SalesDetails to replace the old ones
+   * @return the updated SalesTransaction
+   */
+  @PutMapping("updateSalesTransaction/{transactionId}")
+  public ResponseEntity<SalesTransactionResponseDto> updateSalesTransaction(
+    @PathVariable Long transactionId,
+    @RequestBody List<SalesDetailsDto> newSalesDetailEntities) {
+    SalesTransactionResponseDto updatedTransaction = salesTransactionService.updateSalesTransaction(transactionId, newSalesDetailEntities);
+    return ResponseEntity.ok(updatedTransaction);
+  }
 
-    @DeleteMapping("/{businessEntityId}/suspended-transactions/{transactionId}")
-    public ResponseEntity<List<TransientSalesTransactionDto>> restoreTransaction(@PathVariable Long businessEntityId, @PathVariable Long transactionId) {
-        List<TransientSalesTransactionDto> transactionHistory = salesTransactionService.restoreTransaction(businessEntityId, transactionId);
-        return ResponseEntity.ok(transactionHistory);
-    }
+  @PostMapping("/suspend")
+  public ResponseEntity<List<TransientSalesTransactionDto>> suspendTransaction(@RequestBody SuspendedTransactionDto suspendedTransactionDto) {
+    List<TransientSalesTransactionDto> transactionHistory = salesTransactionService.suspendTransaction(suspendedTransactionDto);
+    return ResponseEntity.ok(transactionHistory);
+  }
 
+  @DeleteMapping("/{businessEntityId}/suspended-transactions/{transactionId}")
+  public ResponseEntity<List<TransientSalesTransactionDto>> restoreTransaction(@PathVariable Long businessEntityId, @PathVariable Long transactionId) {
+    List<TransientSalesTransactionDto> transactionHistory = salesTransactionService.restoreTransaction(businessEntityId, transactionId);
+    return ResponseEntity.ok(transactionHistory);
+  }
 }

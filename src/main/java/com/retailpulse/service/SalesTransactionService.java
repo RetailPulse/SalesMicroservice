@@ -6,6 +6,7 @@ import com.retailpulse.dto.request.SuspendedTransactionDto;
 import com.retailpulse.dto.request.PaymentRequestDto;
 import com.retailpulse.dto.response.CreateTransactionResponseDto;
 import com.retailpulse.dto.response.PaymentResponseDto;
+import com.retailpulse.dto.response.TransactionStatusResponseDto;
 import com.retailpulse.dto.response.SalesTransactionResponseDto;
 import com.retailpulse.dto.response.TaxResultDto;
 import com.retailpulse.dto.response.TransientSalesTransactionDto;
@@ -18,7 +19,6 @@ import com.retailpulse.util.DateUtil;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.retailpulse.client.InventoryServiceClient;
 import com.retailpulse.client.PaymentServiceClient;
 
 import java.math.BigDecimal;
@@ -75,6 +75,30 @@ public class SalesTransactionService {
     );
   }
 
+  /**
+ * Retrieves the current status of a SalesTransaction by its ID.
+ *
+ * @param transactionId The ID of the SalesTransaction.
+ * @return TransactionStatusResponseDto containing the status.
+ * @throws BusinessException if the transaction is not found.
+ */
+  public TransactionStatusResponseDto getTransactionStatus(Long transactionId) {
+      logger.info("Fetching status for SalesTransaction ID: " + transactionId);
+
+      // Find the transaction by ID
+      SalesTransaction transaction = salesTransactionRepository.findById(transactionId)
+              .orElseThrow(() -> {
+                  logger.warning("SalesTransaction not found for ID: " + transactionId);
+                  return new BusinessException(ErrorCodes.NOT_FOUND, "Sales transaction not found for id: " + transactionId);
+              });
+
+      // Map entity to DTO
+      TransactionStatusResponseDto statusDto = new TransactionStatusResponseDto(transaction.getId(), transaction.getStatus());
+
+      logger.fine("Fetched status '" + transaction.getStatus() + "' for SalesTransaction ID: " + transactionId);
+      return statusDto;
+  }
+
   @Transactional
   public CreateTransactionResponseDto createSalesTransaction(SalesTransactionRequestDto requestDto) {
     if (requestDto.salesDetails() == null || requestDto.salesDetails().isEmpty()) {
@@ -113,11 +137,9 @@ public class SalesTransactionService {
       throw new BusinessException("INVENTORY_UPDATE_FAILED", "Inventory update failed: " + e.getMessage());
     }
 
-    transaction = salesTransactionRepository.save(transaction);
-    logger.info("Sales transaction created successfully with ID=" + transaction.getId());
-
     BigDecimal totalAmount = transaction.getTotal(); // Assuming getTotal() returns BigDecimal
     Long transactionId = transaction.getId();
+    
     // Handle potential null totalAmount gracefully if needed
     if (totalAmount == null) {
       logger.severe("Transaction total amount is null for transaction ID=" + transactionId);
@@ -125,6 +147,8 @@ public class SalesTransactionService {
       // salesTransactionRepository.deleteById(transactionId);
       throw new BusinessException("TRANSACTION_TOTAL_NULL", "Transaction total amount is null.");
     }
+    
+    transaction.setStatus(TransactionStatus.PENDING_PAYMENT);
 
     PaymentRequestDto paymentData = new PaymentRequestDto(
       String.valueOf(transactionId), "RetailPulse Payment", 
@@ -144,6 +168,9 @@ public class SalesTransactionService {
             throw new BusinessException("PAYMENT_SERVICE_ERROR", "Failed to initiate payment: " + e.getMessage());
         }
 
+    transaction = salesTransactionRepository.save(transaction);
+    logger.info("Sales transaction created successfully with ID=" + transaction.getId());
+    
     SalesTransactionResponseDto transactionResponseDto = mapToResponseDto(transaction);
 
     CreateTransactionResponseDto responseDto = new CreateTransactionResponseDto(transactionResponseDto, paymentResponseDto);

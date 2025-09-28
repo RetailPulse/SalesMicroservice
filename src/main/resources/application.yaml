@@ -8,7 +8,7 @@ auth:
 
 spring:
   datasource:
-    url: jdbc:mysql://mysql-rp-sales:3306/RPSalesDB 
+    url: jdbc:mysql://localhost:30309/RPSalesDB  #jdbc:mysql://mysql-rp-sales:3306/RPSalesDB 
     username: root
     password: password
     driver-class-name: com.mysql.cj.jdbc.Driver
@@ -20,10 +20,10 @@ spring:
     show-sql: true
     
 inventory-service:
-    url: http://app-rp-inventory:8084
+    url: http://app-rp-inventory:8084 # http://localhost:8087 #
 
 payment-service:
-    url: http://app-rp-payment:8087
+    url: http://app-rp-payment:8087 #http://localhost:8087 # 
 
 logging:
   level:

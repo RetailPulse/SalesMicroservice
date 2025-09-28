@@ -13,6 +13,6 @@ import org.springframework.web.bind.annotation.RequestBody;
   configuration = com.retailpulse.config.FeignConfig.class
   )
 public interface PaymentServiceClient {
-    @PostMapping("/api/payment/create-payment-intent")
+    @PostMapping("/api/payments/create-payment-intent")
     PaymentResponseDto createPaymentIntent(@RequestBody PaymentRequestDto request);
 }

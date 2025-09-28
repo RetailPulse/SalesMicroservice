@@ -13,6 +13,7 @@ public record SalesTransactionMemento(
         String taxAmount,
         String totalAmount,
         List<SalesDetailsDto> salesDetails,
+        String status,
         String transactionDateTime
 ) {
 }
