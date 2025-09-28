@@ -23,6 +23,8 @@ import com.retailpulse.client.PaymentServiceClient;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Instant;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Logger;
@@ -160,13 +162,32 @@ public class SalesTransactionService {
     logger.info("Prepared payment data for transaction ID=" + transactionId + ", amount=" + totalAmount);
 
     PaymentResponseDto paymentResponseDto;
-        try {
-            paymentResponseDto = paymentServiceClient.createPaymentIntent(paymentData);
-            logger.info("Received payment intent for transaction ID=" + transactionId);
-        } catch (Exception e) { // Catch Feign exceptions (FeignException, RetryableException, etc.)
-            logger.severe("Call to Payment Microservice failed for transaction ID=" + transactionId + ": " + e.getMessage());            
-            throw new BusinessException("PAYMENT_SERVICE_ERROR", "Failed to initiate payment: " + e.getMessage());
-        }
+    try {
+      paymentResponseDto = paymentServiceClient.createPaymentIntent(paymentData);
+      logger.info("Received payment intent for transaction ID=" + transactionId);
+    } catch (Exception e) { // Catch Feign exceptions (FeignException, RetryableException, etc.)
+      logger.severe("Call to Payment Microservice failed for transaction ID=" + transactionId + ": " + e.getMessage());
+      throw new BusinessException("PAYMENT_SERVICE_ERROR", "Failed to initiate payment: " + e.getMessage());
+    }
+
+    if (paymentResponseDto.paymentIntentId() != null) {
+      transaction.setPaymentId(paymentResponseDto.paymentId());
+
+      if (paymentResponseDto.paymentEventDate() != null) {
+        transaction.setPaymentEventDate(paymentResponseDto.paymentEventDate().atZone(ZoneId.of("Asia/Singapore")).toInstant());
+      }
+      else{
+        transaction.setPaymentEventDate(java.time.Instant.now());
+      }
+    }
+    else{
+      logger.severe("Payment Microservice returned null paymentIntentId for transaction ID=" + transactionId);
+      throw new BusinessException("PAYMENT_SERVICE_ERROR", "Payment initiation failed: Invalid response from payment service.");
+    }
+
+    if (paymentResponseDto.paymentId() != null) {
+      transaction.setPaymentId(paymentResponseDto.paymentId());
+    }
 
     transaction = salesTransactionRepository.save(transaction);
     logger.info("Sales transaction created successfully with ID=" + transaction.getId());
@@ -177,6 +198,31 @@ public class SalesTransactionService {
     logger.info("Successfully created transaction response for transaction ID=" + transactionId);
 
     return responseDto;
+  }
+
+  /**
+   * Updates the status of an existing SalesTransaction.
+   *
+   * @param transactionId The ID of the SalesTransaction to update.
+   * @param newStatus     The new TransactionStatus to set.
+   * @param paymentEventDate The date of the payment event triggering the status update.
+   * @throws BusinessException if the transaction is not found.
+   */
+  @Transactional // Ensure this operation is atomic
+  public void updateTransactionStatus(Long transactionId, TransactionStatus newStatus, Instant paymentEventDate) {
+    logger.info(String.format("Attempting to update status for SalesTransaction ID: %d to %s", transactionId, newStatus));
+    SalesTransaction transaction = salesTransactionRepository.findById(transactionId)
+      .orElseThrow(() -> {
+          logger.warning(String.format("SalesTransaction not found for ID: %d during status update.", transactionId));
+          return new BusinessException(ErrorCodes.NOT_FOUND, String.format("Sales transaction not found for id: %d", transactionId));
+      });
+
+    TransactionStatus oldStatus = transaction.getStatus();
+    transaction.setStatus(newStatus);
+    transaction.setPaymentEventDate(paymentEventDate);
+    salesTransactionRepository.saveAndFlush(transaction); // Ensure immediate persistence
+
+    logger.info(String.format("Successfully updated SalesTransaction ID: %d status from %s to %s", transactionId, oldStatus, newStatus));    
   }
 
   /**

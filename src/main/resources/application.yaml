@@ -16,9 +16,72 @@ spring:
   jpa:
     hibernate:
       ddl-auto: update
-    database-platform: org.hibernate.dialect.MySQL8Dialect
+    database-platform: org.hibernate.dialect.MySQLDialect
     show-sql: true
-    
+  
+  # --- KAFKA CONFIGURATION ---
+  kafka:
+    bootstrap-servers: localhost:30094 # kafka-service:9092 #  kafka-service.ns-retailpulse.svc.cluster.local:9092 # localhost:9092
+
+    # --- Kafka Consumer Configuration ---
+    consumer:
+      enabled: true 
+      topics:
+        payment: "payment-events"
+      group-ids: 
+        payment: "sales-microservice-group"
+      auto-offset-reset: earliest # latest
+      value-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      properties:
+        spring.json.value.default.type: com.retailpulse.dto.PaymentEventDto
+        spring.json.trusted.packages: "*"
+        spring.deserializer.value.delegate.class: org.springframework.kafka.support.serializer.JsonDeserializer
+        # spring.json.value.default.type: com.retailpulse.dto.PaymentEventDto
+    #     # --- Existing Backoff Settings (keep or adjust as needed) ---
+    #     retry.backoff.ms: 5000 # Note: Might be capped by retry.backoff.max.ms (default 1000)
+    #     request.timeout.ms: 30000
+    #     session.timeout.ms: 45000
+    #     heartbeat.interval.ms: 5000
+    #     # --- END Existing Backoff Settings ---
+
+    # # --- Kafka Listener Configuration (KEY PART FOR STARTUP) ---
+    # listener:
+    #   # ... existing listener config ...
+    #   idle-between-polls: 1000 # 300000 # 5 minutes for polling frequency AFTER connection
+
+    #   # --- CRITICAL: Prevent Startup Failure ---
+    #   # Tell Spring Kafka not to start listener containers automatically on context refresh.
+    #   # This prevents the fatal error during startup if Kafka is unreachable.
+    #   autostartup: false # <-- ADD THIS
+
+    #   # --- Optional: Configure Container Lifecycle for Later Start ---
+    #   # You can manage starting listeners manually later if/when Kafka becomes available,
+    #   # perhaps via a health check or scheduled task.
+    #   # For now, leaving autostartup false is sufficient to prevent immediate failure.
+    #   # --- END Optional ---
+
+    # --- END Kafka Listener Configuration ---
+
+  # --- Actuator Health Configuration ---
+  # Ensure Kafka health check is enabled so you can monitor its status.
+  management:
+    endpoint:
+      health:
+        show-details: always
+    health:
+      kafka:
+        enabled: true
+      # --- Optional: Make Kafka health check not critical for overall app health ---
+      # This means the app can be 'UP' even if Kafka is 'DOWN'.
+      # defaults:
+      #   enabled: true
+      #   status:
+      #     down: # Define what DOWN means for overall health (e.g., OUT_OF_SERVICE)
+      #       status: UP # Or OUT_OF_SERVICE, depending on your desired behavior
+      # --- END Optional ---
+  # --- END Actuator Health Configuration ---
+
 inventory-service:
     url: http://app-rp-inventory:8084 # http://localhost:8087 #
 
@@ -29,8 +92,11 @@ logging:
   level:
     root: INFO
     org:
+      apache:
+        kafka: INFO
       springframework:
-        security: TRACE
-    com.retailpulse: DEBUG
+        security: INFO # TRACE #
+        kafka: INFO # DEBUG # 
+    com.retailpulse: INFO # DEBUG # 
   file:
     name: logs/rp-sales.log

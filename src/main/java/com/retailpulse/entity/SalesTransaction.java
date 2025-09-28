@@ -4,7 +4,6 @@ import com.retailpulse.dto.request.SalesDetailsDto;
 import com.retailpulse.util.DateUtil;
 import jakarta.persistence.*;
 import lombok.Getter;
-import lombok.Setter;
 
 import org.hibernate.annotations.CreationTimestamp;
 
@@ -38,6 +37,12 @@ public class SalesTransaction {
 
     private TransactionStatus status;
 
+    private Long paymentId;
+
+    private String paymentIntentId;
+
+    private Instant paymentEventDate;
+
     @Column(nullable = false)
     @CreationTimestamp
     private Instant transactionDate;
@@ -66,6 +71,18 @@ public class SalesTransaction {
 
     public void setStatus(TransactionStatus status) {
         this.status = status;
+    }
+
+    public void setPaymentId(Long paymentId) {
+        this.paymentId = paymentId;
+    }
+
+    public void setPaymentIntentId(String paymentIntentId) {
+        this.paymentIntentId = paymentIntentId;
+    }
+
+    public void setPaymentEventDate(Instant paymentEventDate) {
+        this.paymentEventDate = paymentEventDate;
     }
 
     public void updateSalesDetails(Map<Long, SalesDetails> details) {

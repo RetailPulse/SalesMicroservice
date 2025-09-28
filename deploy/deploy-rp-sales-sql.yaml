@@ -76,8 +76,7 @@ data:
     -- Table structure for `sales_transaction`
     DROP TABLE IF EXISTS `sales_transaction`;
     /*!40101 SET @saved_cs_client = @@character_set_client */;
-    /*!50503 SET character_set_client = utf8mb4 */;
-    -- Modified: Added `status` column definition
+    /*!50503 SET character_set_client = utf8mb4 */;    
     CREATE TABLE `sales_transaction` (
       `id` bigint NOT NULL AUTO_INCREMENT,
       `business_entity_id` bigint NOT NULL,
@@ -86,7 +85,10 @@ data:
       `total` decimal(38,2) DEFAULT NULL,
       `transaction_date` datetime(6) NOT NULL,
       `sales_tax_id` bigint DEFAULT NULL,
-      `status` ENUM('PENDING_PAYMENT', 'COMPLETED', 'FAILED', 'CANCELLED') NOT NULL DEFAULT 'PENDING_PAYMENT', -- Add status column with default
+      `status` ENUM('PENDING_PAYMENT', 'COMPLETED', 'FAILED', 'CANCELLED') NOT NULL DEFAULT 'PENDING_PAYMENT', 
+      `payment_id` bigint DEFAULT NULL, 
+      `payment_intent_id` varchar(255) DEFAULT NULL, 
+      `payment_event_date` datetime(6) DEFAULT NULL, 
       PRIMARY KEY (`id`),
       KEY `FK7wq54e1ubjodfnaph9fu12grq` (`sales_tax_id`),
       CONSTRAINT `FK7wq54e1ubjodfnaph9fu12grq` FOREIGN KEY (`sales_tax_id`) REFERENCES `sales_tax` (`id`)
@@ -94,8 +96,8 @@ data:
     /*!40101 SET character_set_client = @saved_cs_client */;
 
     -- Dumping data for `sales_transaction`
-    -- Note: If there were existing rows, the default 'PENDING_PAYMENT' would be applied.
-    -- Since the table is empty on creation, no explicit data insertion change is needed here for status.
+    -- Note: If there were existing rows, the defaults (NULL for new columns, 'PENDING_PAYMENT' for status) would be applied.
+    -- Since the table is empty on creation, no explicit data insertion change is needed here.
     LOCK TABLES `sales_transaction` WRITE;
     /*!40000 ALTER TABLE `sales_transaction` DISABLE KEYS */;
     /*!40000 ALTER TABLE `sales_transaction` ENABLE KEYS */;
