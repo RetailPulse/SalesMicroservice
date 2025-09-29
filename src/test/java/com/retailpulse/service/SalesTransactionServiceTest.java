@@ -4,7 +4,9 @@ import com.retailpulse.client.PaymentServiceClient;
 import com.retailpulse.dto.request.SalesDetailsDto;
 import com.retailpulse.dto.request.SalesTransactionRequestDto;
 import com.retailpulse.dto.request.SuspendedTransactionDto;
+import com.retailpulse.dto.request.PaymentRequestDto;
 import com.retailpulse.dto.response.CreateTransactionResponseDto;
+import com.retailpulse.dto.response.PaymentResponseDto;
 import com.retailpulse.dto.response.SalesTransactionResponseDto;
 import com.retailpulse.dto.response.TaxResultDto;
 import com.retailpulse.dto.response.TransientSalesTransactionDto;
@@ -22,6 +24,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.lang.reflect.Field;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -57,6 +60,10 @@ public class SalesTransactionServiceTest {
   List<SalesDetailsDto> salesDetailsDtos;
   SalesTransaction dummySalesTransaction;
   SalesTax dummySalesTax;
+  
+  private final Long testTransactionId = 1L;
+  private final TransactionStatus initialStatus = TransactionStatus.PENDING_PAYMENT;
+  private final TransactionStatus newStatus = TransactionStatus.COMPLETED;
 
   @BeforeEach
   public void setUp() {
@@ -67,7 +74,7 @@ public class SalesTransactionServiceTest {
     salesTransactionRequestDto = new SalesTransactionRequestDto(1L, "108.00", "1308.00", salesDetailsDtos);
 
     dummySalesTax = new SalesTax(TaxType.GST, new BigDecimal("0.09"));
-
+    
     Map<Long, SalesDetails> salesDetails = salesDetailsDtos.stream()
       .collect(Collectors.toMap(
         SalesDetailsDto::productId,
@@ -79,8 +86,11 @@ public class SalesTransactionServiceTest {
     dummySalesTransaction.addSalesDetails(salesDetails);
     
     // Manually set the ID to simulate a persisted entity
-    setPrivateField(dummySalesTransaction, "id", 1L);
+    setPrivateField(dummySalesTransaction, "id", testTransactionId);
     setPrivateField(dummySalesTransaction, "transactionDate", Instant.now());
+    setPrivateField(dummySalesTransaction, "paymentId", 1L);
+    setPrivateField(dummySalesTransaction, "paymentIntentId", "pi_123");    
+    setPrivateField(dummySalesTransaction, "status", initialStatus);
   }
 
   @Test
@@ -99,7 +109,33 @@ public class SalesTransactionServiceTest {
   @Test
   public void testCreateSalesTransaction_success() {
     when(salesTaxRepository.findSalesTaxByTaxType(TaxType.GST)).thenReturn(Optional.of(dummySalesTax));
-    when(salesTransactionRepository.save(any(SalesTransaction.class))).thenReturn(dummySalesTransaction);
+    when(salesTransactionRepository.save(any(SalesTransaction.class)))
+    .thenAnswer(invocation -> {
+      SalesTransaction savedTransaction = invocation.getArgument(0);
+      // Sanity check if needed (optional)
+      assertNotNull(savedTransaction, "Transaction passed to saveAndFlush should not be null");
+      if (savedTransaction.getId() == null) {                
+          setPrivateField(savedTransaction, "id", testTransactionId);
+      }
+      if (savedTransaction.getTransactionDate() == null) {
+          setPrivateField(savedTransaction, "transactionDate", Instant.now());
+      }
+      if (savedTransaction.getPaymentIntentId() == null) {
+          setPrivateField(savedTransaction, "paymentIntentId", "pi_123");
+      }
+      return savedTransaction; // Return the object that was passed in
+    });
+    
+    PaymentResponseDto mockPaymentResponse = new PaymentResponseDto(
+      "mock_client_secret_abc123", // clientSecret
+      1L,                       // paymentId (example)
+      "pi_mxyz",// paymentIntentId
+      null
+    );
+    when(paymentServiceClient.createPaymentIntent(any(PaymentRequestDto.class)))
+      .thenReturn(mockPaymentResponse);
+      
+    assertNotNull(dummySalesTransaction, "dummySalesTransaction must be initialized before the test");
 
     CreateTransactionResponseDto response = salesTransactionService.createSalesTransaction(salesTransactionRequestDto);
 
@@ -107,9 +143,42 @@ public class SalesTransactionServiceTest {
     assertEquals("1200.00", response.transaction().subTotalAmount());
     assertEquals("108.00", response.transaction().taxAmount());
     assertEquals("1308.00", response.transaction().totalAmount());
-
+    
     verify(stockUpdateService, times(1)).updateStocks(eq(1L), any());
     verify(salesTransactionRepository, times(1)).save(any(SalesTransaction.class));
+    verify(paymentServiceClient, times(1)).createPaymentIntent(any(PaymentRequestDto.class));
+  }
+
+  @Test
+  void updateTransactionStatus_Success() {
+    // Arrange
+    when(salesTransactionRepository.findById(testTransactionId)).thenReturn(Optional.of(dummySalesTransaction));
+    when(salesTransactionRepository.saveAndFlush(any(SalesTransaction.class))).thenAnswer(invocation -> invocation.getArgument(0)); // Return the saved object
+
+    // Act
+    assertDoesNotThrow(() -> salesTransactionService.updateTransactionStatus(testTransactionId, newStatus, Instant.now()));
+
+    // Assert
+    assertEquals(newStatus, dummySalesTransaction.getStatus(), "Transaction status should be updated.");
+    verify(salesTransactionRepository, times(1)).findById(testTransactionId);
+    verify(salesTransactionRepository, times(1)).saveAndFlush(dummySalesTransaction); // Verify save was called
+  }
+
+  @Test
+  void updateTransactionStatus_TransactionNotFound_ThrowsBusinessException() {
+    // Arrange
+    Long nonExistentId = 999L;
+    when(salesTransactionRepository.findById(nonExistentId)).thenReturn(Optional.empty());
+
+    // Act & Assert
+    BusinessException exception = assertThrows(BusinessException.class, () -> {
+        salesTransactionService.updateTransactionStatus(nonExistentId, newStatus, Instant.now());
+    });
+
+    assertEquals("NOT_FOUND", exception.getErrorCode(), "Error code should be NOT_FOUND.");    
+    assertTrue(exception.getMessage().contains("Sales transaction not found for id: " + nonExistentId), "Message should contain transaction ID.");
+    verify(salesTransactionRepository, times(1)).findById(nonExistentId);
+    verify(salesTransactionRepository, never()).save(any(SalesTransaction.class)); // Verify save was NOT called
   }
 
   @Test
