@@ -88,7 +88,7 @@ public class SalesTransactionService {
       logger.info("Fetching status for SalesTransaction ID: " + transactionId);
 
       // Find the transaction by ID
-      SalesTransaction transaction = salesTransactionRepository.findByPaymentId(transactionId)
+      SalesTransaction transaction = salesTransactionRepository.findById(transactionId)
               .orElseThrow(() -> {
                   logger.warning("SalesTransaction not found for ID: " + transactionId);
                   return new BusinessException(ErrorCodes.NOT_FOUND, "Sales transaction not found for id: " + transactionId);
