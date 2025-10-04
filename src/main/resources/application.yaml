@@ -1,10 +1,10 @@
 server: 
-  port: 8085
+  port: 30085 # 8085
 
 auth:
-  enabled: false
+  enabled: true
   origin: "http://localhost:30080" # "http://localhost:4200"
-  jwt.key.set.uri: http://app-iam:8081/oauth2/jwks
+  jwt.key.set.uri: "http://localhost:30081/oauth2/jwks" # http://app-iam:8081/oauth2/jwks
 
 spring:
   datasource:
@@ -86,17 +86,17 @@ inventory-service:
     url: http://localhost:30084 #http://app-rp-inventory:8084 # http://localhost:8084 #
 
 payment-service:
-    url: http://localhost:8087 # http://app-rp-payment:8087 #
+    url: http://localhost:30087 # http://localhost:8087 # http://app-rp-payment:8087 #
 
 logging:
   level:
     root: INFO
     org:
       apache:
-        kafka: INFO
+        kafka: INFO # OFF # INFO # DEBUG #
       springframework:
         security: INFO # TRACE #
-        kafka: INFO # DEBUG # 
+        kafka: INFO # OFF # INFO # DEBUG # 
     com.retailpulse: INFO # DEBUG # 
   file:
     name: logs/rp-sales.log
