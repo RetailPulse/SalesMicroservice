@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 public record PaymentRequestDto (
     @JsonProperty("transaction_id") 
-    String transactionId,
+    Long transactionId,
     @JsonProperty("description")
     String description,
     @JsonProperty("amount")

@@ -139,38 +139,39 @@ public class SalesTransactionService {
       throw new BusinessException("INVENTORY_UPDATE_FAILED", "Inventory update failed: " + e.getMessage());
     }
 
-    BigDecimal totalAmount = transaction.getTotal(); // Assuming getTotal() returns BigDecimal
-    Long transactionId = transaction.getId();
+    BigDecimal totalAmount = transaction.getTotal(); // Assuming getTotal() returns BigDecimal    
     
     // Handle potential null totalAmount gracefully if needed
     if (totalAmount == null) {
-      logger.severe("Transaction total amount is null for transaction ID=" + transactionId);
-      // Clean up preliminary transaction if desired
-      // salesTransactionRepository.deleteById(transactionId);
+      logger.severe("Transaction total amount is null for transaction.");      
       throw new BusinessException("TRANSACTION_TOTAL_NULL", "Transaction total amount is null.");
     }
     
     transaction.setStatus(TransactionStatus.PENDING_PAYMENT);
+    transaction = salesTransactionRepository.save(transaction);
+    salesTransactionRepository.flush(); // Forces Hibernate to flush to DB
+    Long transactionId = transaction.getId();
 
     PaymentRequestDto paymentData = new PaymentRequestDto(
-      String.valueOf(transactionId), "RetailPulse Payment", 
+      transactionId, "RetailPulse Payment", 
       totalAmount.doubleValue(), 
       "SGD", 
       "pos@retailpulse.com", 
       "card"
     ); 
-    logger.info("Prepared payment data for transaction ID=" + transactionId + ", amount=" + totalAmount);
+    logger.info("Prepared payment data for transaction " + transactionId + ", amount=" + totalAmount);
 
     PaymentResponseDto paymentResponseDto;
     try {
       paymentResponseDto = paymentServiceClient.createPaymentIntent(paymentData);
-      logger.info("Received payment intent for transaction ID=" + transactionId);
+      logger.info("Received payment intent for transaction: " + transactionId);
     } catch (Exception e) { // Catch Feign exceptions (FeignException, RetryableException, etc.)
-      logger.severe("Call to Payment Microservice failed for transaction ID=" + transactionId + ": " + e.getMessage());
+      logger.severe("Call to Payment Microservice failed for transaction: " + transactionId + ": " + e.getMessage());
       throw new BusinessException("PAYMENT_SERVICE_ERROR", "Failed to initiate payment: " + e.getMessage());
     }
 
-    if (paymentResponseDto.paymentIntentId() != null) {
+    transaction.setPaymentIntentId(paymentResponseDto.paymentIntentId());
+    if (paymentResponseDto.paymentId() != null) {
       transaction.setPaymentId(paymentResponseDto.paymentId());
 
       if (paymentResponseDto.paymentEventDate() != null) {
@@ -181,7 +182,7 @@ public class SalesTransactionService {
       }
     }
     else{
-      logger.severe("Payment Microservice returned null paymentIntentId for transaction ID=" + transactionId);
+      logger.severe("Payment Microservice returned null paymentIntentId for transaction: " + transactionId);
       throw new BusinessException("PAYMENT_SERVICE_ERROR", "Payment initiation failed: Invalid response from payment service.");
     }
 
@@ -195,7 +196,7 @@ public class SalesTransactionService {
     SalesTransactionResponseDto transactionResponseDto = mapToResponseDto(transaction);
 
     CreateTransactionResponseDto responseDto = new CreateTransactionResponseDto(transactionResponseDto, paymentResponseDto);
-    logger.info("Successfully created transaction response for transaction ID=" + transactionId);
+    logger.info("Successfully created transaction response for transaction.");
 
     return responseDto;
   }

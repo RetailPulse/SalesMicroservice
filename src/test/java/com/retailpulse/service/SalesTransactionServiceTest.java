@@ -128,9 +128,13 @@ public class SalesTransactionServiceTest {
     
     PaymentResponseDto mockPaymentResponse = new PaymentResponseDto(
       "mock_client_secret_abc123", // clientSecret
-      1L,                       // paymentId (example)
       "pi_mxyz",// paymentIntentId
-      null
+      1L,                       // paymentId (example)
+      1L,                       // transactionId
+      1308.00,                 // totalPrice
+      "SGD",                    // currency
+      PaymentStatus.PROCESSING,    // paymentStatus
+      null  
     );
     when(paymentServiceClient.createPaymentIntent(any(PaymentRequestDto.class)))
       .thenReturn(mockPaymentResponse);
@@ -145,7 +149,7 @@ public class SalesTransactionServiceTest {
     assertEquals("1308.00", response.transaction().totalAmount());
     
     verify(stockUpdateService, times(1)).updateStocks(eq(1L), any());
-    verify(salesTransactionRepository, times(1)).save(any(SalesTransaction.class));
+    verify(salesTransactionRepository, times(2)).save(any(SalesTransaction.class));
     verify(paymentServiceClient, times(1)).createPaymentIntent(any(PaymentRequestDto.class));
   }
 
