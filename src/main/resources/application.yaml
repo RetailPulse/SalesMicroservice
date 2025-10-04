@@ -3,7 +3,7 @@ server:
 
 auth:
   enabled: false
-  origin: "http://localhost:4200"
+  origin: "http://localhost:30080" # "http://localhost:4200"
   jwt.key.set.uri: http://app-iam:8081/oauth2/jwks
 
 spring:
@@ -83,10 +83,10 @@ spring:
   # --- END Actuator Health Configuration ---
 
 inventory-service:
-    url: http://app-rp-inventory:8084 # http://localhost:8087 #
+    url: http://localhost:30084 #http://app-rp-inventory:8084 # http://localhost:8084 #
 
 payment-service:
-    url: http://app-rp-payment:8087 #http://localhost:8087 # 
+    url: http://localhost:8087 # http://app-rp-payment:8087 #
 
 logging:
   level:

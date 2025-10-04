@@ -80,7 +80,7 @@ spec:
             - name: MYSQL_PORT
               value: "3306"
       containers:
-      - image: rp-sales-app:v0.1.0 #docker.io/casperyap/
+      - image: docker.io/casperyap/rp-sales-app:v0.1.0 #docker.io/casperyap/
         name: app-rp-sales
         imagePullPolicy: Never # Always        
         volumeMounts:

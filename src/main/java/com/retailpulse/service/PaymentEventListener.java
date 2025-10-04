@@ -42,7 +42,7 @@ public class PaymentEventListener {
         topics = "${spring.kafka.consumer.topics.payment}", // "payment-events",
         groupId = "${spring.kafka.consumer.group-ids.payment}" // Ensure this group ID is unique for the Sales service
         // containerFactory = "..." // Optional: specify if you created a custom container factory
-    )    
+    )
     public void handlePaymentEvent(PaymentEventDto paymentEvent) {
         logger.info(String.format("Received Payment Event: Payment ID '%s', Intent ID '%s', Transaction ID '%s', Status '%s'",
                 paymentEvent.paymentId(),
