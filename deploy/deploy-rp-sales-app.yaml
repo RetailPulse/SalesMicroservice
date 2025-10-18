@@ -28,17 +28,58 @@ data:
           ddl-auto: update
         database-platform: org.hibernate.dialect.MySQL8Dialect
         show-sql: true
+
+      kafka:
+        bootstrap-servers: localhost:30094 # kafka-service:9092 #  kafka-service.ns-retailpulse.svc.cluster.local:9092 # localhost:9092
+
+        # --- Kafka Consumer Configuration ---
+        consumer:
+          enabled: true 
+          topics:
+            payment: "payment-events"
+          group-ids: 
+            payment: "sales-microservice-group"
+          auto-offset-reset: earliest # latest
+          value-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+          key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+          properties:
+            spring.json.value.default.type: com.retailpulse.dto.PaymentEventDto
+            spring.json.trusted.packages: "*"
+            spring.deserializer.value.delegate.class: org.springframework.kafka.support.serializer.JsonDeserializer
+            # spring.json.value.default.type: com.retailpulse.dto.PaymentEventDto
+        #     # --- Existing Backoff Settings (keep or adjust as needed) ---
+        #     retry.backoff.ms: 5000 # Note: Might be capped by retry.backoff.max.ms (default 1000)
+        #     request.timeout.ms: 30000
+        #     session.timeout.ms: 45000
+        #     heartbeat.interval.ms: 5000
+        #     # --- END Existing Backoff Settings ---
+
+      # --- Actuator Health Configuration ---
+      # Ensure Kafka health check is enabled so you can monitor its status.
+      management:
+        endpoint:
+          health:
+            show-details: always
+        health:
+          kafka:
+            enabled: true
         
     inventory-service:
       url: http://svc-rp-inventory:8084
+    
+    payment-service:
+      url: http://svc-rp-payment:8087 
 
     logging:
       level:
         root: INFO
         org:
+          apache:
+            kafka: INFO
           springframework:
-            security: TRACE
-        com.retailpulse: DEBUG
+            security: INFO # TRACE #
+            kafka: INFO # DEBUG # 
+        com.retailpulse: INFO # DEBUG # 
       file:
         name: logs/rp-sales.log
 
@@ -80,7 +121,7 @@ spec:
             - name: MYSQL_PORT
               value: "3306"
       containers:
-      - image: rp-sales-app:v0.1.0 #docker.io/casperyap/
+      - image: docker.io/casperyap/rp-sales-app:v0.1.0 #docker.io/casperyap/
         name: app-rp-sales
         imagePullPolicy: Never # Always        
         volumeMounts:
