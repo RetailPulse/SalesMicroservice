@@ -34,21 +34,22 @@ public class SalesMicroserviceConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         if (authEnabled) {
             System.out.println("Auth enabled");
-            http.oauth2ResourceServer(
-                    c -> c.jwt(
-                            j -> j.jwkSetUri(keySetUri).jwtAuthenticationConverter(jwtAuthenticationConverter())
-                    )
+            http.oauth2ResourceServer(c -> c
+              .jwt(
+                      j -> j.jwkSetUri(keySetUri).jwtAuthenticationConverter(jwtAuthenticationConverter())
+              )
             );
 
-            http.authorizeHttpRequests(
-                    c -> c.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                            .requestMatchers("/hello").authenticated()
-                            .requestMatchers("/api/**").authenticated() //.hasRole("SUPER").anyRequest().authenticated()
+            http.authorizeHttpRequests(c -> c
+              .requestMatchers(HttpMethod.GET, "/actuator/health", "/actuator/info", "/actuator/prometheus").permitAll()
+              .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+              .requestMatchers("/hello").authenticated()
+              .requestMatchers("/api/**").authenticated() //.hasRole("SUPER").anyRequest().authenticated()
             );
         } else {
             System.out.println("No auth enabled");
-            http.authorizeHttpRequests(
-                    c -> c.anyRequest().permitAll()
+            http.authorizeHttpRequests(c -> c
+              .anyRequest().permitAll()
             );
             http.csrf(csrf -> csrf.disable());
         }
