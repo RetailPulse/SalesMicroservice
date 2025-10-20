@@ -18,6 +18,9 @@
 --
 -- Table structure for table `sales_details`
 --
+CREATE DATABASE IF NOT EXISTS RPSalesDB;
+
+USE RPSalesDB;
 
 DROP TABLE IF EXISTS `sales_details`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
