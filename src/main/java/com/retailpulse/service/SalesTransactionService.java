@@ -127,7 +127,7 @@ public class SalesTransactionService {
       .collect(Collectors.toMap(
         SalesDetails::getProductId,
         detail -> detail,
-        (_, replacement) -> replacement
+        (existing, replacement) -> replacement
       ));
 
     transaction.addSalesDetails(salesDetailEntities);
@@ -334,7 +334,7 @@ public class SalesTransactionService {
       .collect(Collectors.toMap(
         SalesDetails::getProductId,
         detail -> detail,
-        (_, replacement) -> replacement
+        (existing, replacement) -> replacement
       ));
 
     salesTransaction.addSalesDetails(salesDetails);
