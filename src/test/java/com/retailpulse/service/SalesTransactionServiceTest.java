@@ -79,7 +79,7 @@ public class SalesTransactionServiceTest {
       .collect(Collectors.toMap(
         SalesDetailsDto::productId,
         dto -> new SalesDetails(dto.productId(), dto.quantity(), new BigDecimal(dto.salesPricePerUnit())),
-        (_, replacement) -> replacement
+        (existing, replacement) -> replacement
       ));
 
     dummySalesTransaction = new SalesTransaction(1L, dummySalesTax);
