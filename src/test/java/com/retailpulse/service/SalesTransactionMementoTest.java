@@ -36,7 +36,6 @@ public class SalesTransactionMementoTest {
     @Mock
     private PaymentServiceClient paymentServiceClient;
 
-    // TODO: Modify to use inventory service mock instead start
     @Test
     public void testSalesTransactionMemento() {
         SalesDetailsDto salesDetailsDto1 = new SalesDetailsDto(1L, 2, "50.0");
@@ -62,7 +61,7 @@ public class SalesTransactionMementoTest {
 
         assertEquals(3, suspendedTransactions.size());
 
-        suspendedTransactions = salesTransactionService.restoreTransaction(1L, suspendedTransactions.get(0).transactionId());
+        suspendedTransactions = salesTransactionService.restoreTransaction(1L, suspendedTransactions.getFirst().transactionId());
 
         assertEquals(2, suspendedTransactions.size());
        
